@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self' http://localhost:3000 http://*.execute-api.localhost.floci.io:4566; style-src 'self'">
+  <title>Election – Admin</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body data-root="../">
+  <header></header>
+  <main class="wide">
+    <p><a class="back" href="index.html">← All elections</a></p>
+    <p id="flash" class="flash" role="alert"></p>
+
+    <section class="card">
+      <div class="row title-row"><h2 id="title">Election</h2><span id="status"></span><span id="owner" class="hint"></span></div>
+      <form id="edit-form" class="grid2">
+        <label>Title <input id="e-title" required minlength="3" maxlength="120"></label>
+        <label>Description <input id="e-desc" maxlength="1000"></label>
+        <label>Voting opens <input id="e-start" type="datetime-local" required></label>
+        <label>Voting closes <input id="e-end" type="datetime-local" required></label>
+        <div class="form-actions"><button type="submit" id="save-btn" class="secondary">Save changes</button></div>
+      </form>
+      <div id="actions" class="actions"></div>
+    </section>
+
+    <section class="card">
+      <h2>Ready to schedule?</h2>
+      <p class="hint">An election can only be scheduled when all three checks are green.</p>
+      <ul id="readiness" class="checks"></ul>
+      <p id="turnout" class="hint"></p>
+    </section>
+
+    <section class="card">
+      <h2>Positions and candidates</h2>
+      <p class="hint">A position is a role students vote for, such as President. Each position needs at least 2 candidates.</p>
+      <form id="pos-form" class="row">
+        <input id="p-title" placeholder="New position, e.g. President" required minlength="2" maxlength="80">
+        <label class="inline">Winners <input id="p-max" type="number" min="1" max="10" value="1"></label>
+        <button type="submit">Add position</button>
+      </form>
+      <div id="positions"></div>
+    </section>
+
+    <section class="card">
+      <h2>Who can vote <span id="elig-count" class="hint"></span></h2>
+      <p class="hint">Only students on this list will see the election and be allowed to vote.</p>
+      <div class="row">
+        <button id="add-all" class="secondary">Add all students</button>
+        <input id="find-student" placeholder="Search a student to add (number or name)" maxlength="50">
+      </div>
+      <ul id="found" class="plain"></ul>
+      <table>
+        <thead><tr><th>Number</th><th>Name</th><th>Faculty</th><th></th></tr></thead>
+        <tbody id="eligible"></tbody>
+      </table>
+    </section>
+  </main>
+  <script src="../js/config.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/ui.js"></script>
+  <script src="js/election.js"></script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self' http://localhost:3000 http://*.execute-api.localhost.floci.io:4566; style-src 'self'">
+  <title>Students – Admin</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body data-root="../">
+  <header></header>
+  <main class="wide">
+    <p id="flash" class="flash" role="alert"></p>
+
+    <section class="card">
+      <h2>Add one student</h2>
+      <form id="add-form" class="grid2">
+        <label>Student number <input id="s-number" required pattern="[A-Za-z0-9]{4,12}" maxlength="12" placeholder="e.g. 230101"></label>
+        <label>Full name <input id="s-name" required minlength="2" maxlength="100"></label>
+        <label>University email <input id="s-email" type="email" required maxlength="254"></label>
+        <label>Faculty <input id="s-faculty" maxlength="80" placeholder="Optional"></label>
+        <div class="form-actions"><button type="submit">Add student</button></div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Add many students at once</h2>
+      <p class="hint">Paste one student per line in this order: <code>number,full name,email,faculty</code> (up to 500 lines). Students that already exist are skipped and listed below.</p>
+      <textarea id="csv" rows="5" placeholder="230101,Sara Hassan,sara.hassan@uni.test,Computer Science"></textarea>
+      <div class="form-actions"><button id="import-btn">Add these students</button></div>
+      <pre id="import-report" class="hint"></pre>
+    </section>
+
+    <section class="card">
+      <div class="row"><h2>All students <span id="count" class="hint"></span></h2><input id="search" placeholder="Search by number, name or email" maxlength="50"></div>
+      <table>
+        <thead><tr><th>Number</th><th>Name</th><th>Email</th><th>Faculty</th><th>Active</th><th></th></tr></thead>
+        <tbody id="students"></tbody>
+      </table>
+    </section>
+  </main>
+  <script src="../js/config.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/ui.js"></script>
+  <script src="js/students.js"></script>
+</body>
+</html>

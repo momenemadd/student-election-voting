@@ -18,6 +18,7 @@ async function api(path, { method = 'GET', body } = {}) {
     if (res.status === 401) Auth.clear();
     const err = new Error((data && data.error && data.error.message) || `Request failed (${res.status})`);
     err.status = res.status;
+    err.data = data; // full response body (e.g. an import report sent with a 400)
     throw err;
   }
   return data;
