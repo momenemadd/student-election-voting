@@ -8,7 +8,7 @@ Cloud Computing & Cloud Security group project. Express APIs (3 services) + plai
 | Voter Access & Voting | Mohamed Osama | `backend/services/voting`, `frontend/student`, `backend/shared` |
 | Results & Audit | Mohamed Khaled | `backend/services/results`, `frontend/auditor`, `docs` |
 
-Full design: `FINAL_PHASE_PLAN.md`. Schedule: `docs/seven-day-schedule.md`.
+**Start here: `docs/TEAM_GUIDE.md`** (status, who does what, setup steps). Full design: `FINAL_PHASE_PLAN.md`.
 
 ## Run locally
 ```bash
@@ -26,8 +26,10 @@ npm test                       # unit tests (state machine, validators, audit ha
 ```bash
 docker compose -f infra/floci/docker-compose.yml up -d
 export AWS_PROFILE=floci MSYS_NO_PATHCONV=1
-bash infra/setup-all.sh        # tables, secret, buckets, IAM roles, 3 Lambdas, API Gateway, S3 site
+bash infra/setup-all.sh        # first time: tables, secret, buckets, IAM roles, 3 Lambdas, API Gateway, S3 site (safe to re-run)
+bash infra/deploy-code.sh      # after every code change: updates the 3 Lambdas + website
 ```
+Floci runs in persistent mode (Docker volume `floci-data`), so everything survives restarts.
 
 ## Rules
 - No secrets in git (`.env` is ignored; only `.env.example`). Run gitleaks before every push to `main`.

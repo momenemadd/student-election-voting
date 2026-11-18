@@ -1,5 +1,7 @@
 # Team 41 – Student Election Voting: Final Phase Master Plan
 
+> **Planning document (18 Nov).** What was actually built is described in `docs/TEAM_GUIDE.md` and `docs/REPORT_DRAFT.md`. Built differently from this plan, by decision: no SQS queue (services write the audit log directly), no EventBridge Scheduler (opening/closing is applied automatically from the database clock), no HIBP check, no candidate photos, no SNS. Use the report draft, not this file, as the source for the final report.
+
 Team: Mo'men Mohamed (244238) · Mohamed Osama (246405) · Mohamed Khaled (248822)
 Prepared: 2026-11-18. **Deadline: Wednesday 2026-11-25 (7 days).** The 5-week timeline in §11.2 is superseded: follow `docs/seven-day-schedule.md` (Lean core scope). Repo scaffold is already generated.
 
