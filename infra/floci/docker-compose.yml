@@ -1,10 +1,19 @@
-# Floci = local AWS emulator. If your Lab 7 starter has its own infra/floci/docker-compose.yml, use that one instead.
+# Floci = local AWS emulator.
 # Start:  docker compose -f infra/floci/docker-compose.yml up -d
 # UI:     http://localhost:4566/_floci/ui
+# Data is kept in the Docker volume "floci-data" so tables, functions, APIs etc. survive restarts.
 services:
   floci:
     image: floci/floci:latest
     ports:
       - "4566:4566"
+    environment:
+      FLOCI_STORAGE_MODE: persistent          # default "memory" loses everything on restart
+      FLOCI_STORAGE_PERSISTENT_PATH: /app/data
     volumes:
+      - floci-data:/app/data
       - /var/run/docker.sock:/var/run/docker.sock   # Floci starts Lambda containers through Docker
+    restart: unless-stopped                   # comes back by itself when Docker Desktop starts
+
+volumes:
+  floci-data:

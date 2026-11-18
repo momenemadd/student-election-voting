@@ -3,7 +3,6 @@
   "Statement": [
     { "Effect": "Allow", "Action": ["secretsmanager:GetSecretValue"], "Resource": "arn:aws:secretsmanager:us-east-1:000000000000:secret:election/app-secrets*" },
     { "Effect": "Allow", "Action": ["dynamodb:PutItem", "dynamodb:Query"], "Resource": "arn:aws:dynamodb:us-east-1:000000000000:table/AuditLog" },
-    { "Effect": "Allow", "Action": ["s3:PutObject"], "Resource": "arn:aws:s3:::election-assets/photos/*" },
     { "Effect": "Allow", "Action": ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"], "Resource": "*" }
   ]
 }

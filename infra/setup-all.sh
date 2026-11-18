@@ -8,7 +8,7 @@ REGION=us-east-1; ACCT=000000000000
 ENV_FILE=backend/.env
 
 [ -f "$ENV_FILE" ] || { echo "Create backend/.env first (see .env.example)"; exit 1; }
-set -a; source "$ENV_FILE"; set +a    # secrets stay in the shell, are never printed or committed
+# .env is parsed by dotenv (not bash `source`: connection strings contain '&'). Values are never printed.
 
 echo "== 1. DynamoDB tables"
 aws dynamodb create-table --table-name AuditLog \
@@ -20,19 +20,22 @@ aws dynamodb create-table --table-name RateLimits \
   --billing-mode PAY_PER_REQUEST >/dev/null || echo "(RateLimits exists)"
 
 echo "== 2. Secrets Manager (value built from backend/.env, not printed)"
-SECRET_JSON=$(node -e "const e=process.env;console.log(JSON.stringify({DATABASE_URL:e.DATABASE_URL,JWT_SECRET:e.JWT_SECRET,TURNSTILE_SECRET_KEY:e.TURNSTILE_SECRET_KEY,MAIL_API_KEY:e.MAIL_API_KEY||''}))")
+SECRET_JSON=$(node -e "require('./backend/node_modules/dotenv').config({path:'$ENV_FILE',quiet:true});const e=process.env;console.log(JSON.stringify({DATABASE_URL:e.DATABASE_URL,JWT_SECRET:e.JWT_SECRET,TURNSTILE_SECRET_KEY:e.TURNSTILE_SECRET_KEY,MAIL_API_KEY:e.MAIL_API_KEY||''}))")
 aws secretsmanager create-secret --name election/app-secrets --secret-string "$SECRET_JSON" >/dev/null \
   || aws secretsmanager put-secret-value --secret-id election/app-secrets --secret-string "$SECRET_JSON" >/dev/null
 
 echo "== 3. S3 buckets"
 aws s3 mb s3://election-web >/dev/null || true       # PUBLIC: frontend files only
-aws s3 mb s3://election-assets >/dev/null || true    # candidate photos
 aws s3 mb s3://election-results >/dev/null || true   # result snapshots (private)
 
 echo "== 4. IAM: one least-privilege role per service"
 for SVC in election voting results; do
   aws iam create-role --role-name $SVC-svc-role --assume-role-policy-document file://infra/iam/trust-policy.json >/dev/null || true
-  aws iam create-policy --policy-name $SVC-svc-policy --policy-document file://infra/iam/$SVC-svc-policy.json >/dev/null || true
+  if ! aws iam create-policy --policy-name $SVC-svc-policy --policy-document file://infra/iam/$SVC-svc-policy.json >/dev/null 2>&1; then
+    # policy exists: publish the current JSON as the new default version (keeps IAM in sync with the repo)
+    aws iam create-policy-version --policy-arn arn:aws:iam::$ACCT:policy/$SVC-svc-policy \
+      --policy-document file://infra/iam/$SVC-svc-policy.json --set-as-default >/dev/null 2>&1 || true
+  fi
   aws iam attach-role-policy --role-name $SVC-svc-role --policy-arn arn:aws:iam::$ACCT:policy/$SVC-svc-policy
 done
 
@@ -47,7 +50,7 @@ for SVC in election voting results; do
   else
     aws lambda create-function --function-name $SVC-svc --runtime nodejs24.x --handler lambda/$SVC.handler \
       --role arn:aws:iam::$ACCT:role/$SVC-svc-role --zip-file fileb://backend/lambda.zip \
-      --timeout 15 --memory-size 256 --environment "$ENVVARS" >/dev/null
+      --timeout 15 --memory-size 512 --environment "$ENVVARS" >/dev/null
   fi
 done
 
@@ -58,12 +61,21 @@ if [ "$API_ID" = "None" ] || [ -z "$API_ID" ]; then
 fi
 declare -A INTEG
 for SVC in election voting results; do
-  INTEG[$SVC]=$(aws apigatewayv2 create-integration --api-id $API_ID --integration-type AWS_PROXY --payload-format-version 2.0 \
-    --integration-uri arn:aws:lambda:$REGION:$ACCT:function:$SVC-svc --query IntegrationId --output text)
+  URI=arn:aws:lambda:$REGION:$ACCT:function:$SVC-svc
+  ID=$(aws apigatewayv2 get-integrations --api-id $API_ID --query "Items[?IntegrationUri=='$URI']|[0].IntegrationId" --output text)
+  if [ "$ID" = "None" ] || [ -z "$ID" ]; then      # reuse on re-runs, create only the first time
+    ID=$(aws apigatewayv2 create-integration --api-id $API_ID --integration-type AWS_PROXY --payload-format-version 2.0 \
+      --integration-uri $URI --query IntegrationId --output text)
+  fi
+  INTEG[$SVC]=$ID
   aws lambda add-permission --function-name $SVC-svc --statement-id apigw-invoke --action lambda:InvokeFunction \
     --principal apigateway.amazonaws.com --source-arn "arn:aws:execute-api:$REGION:$ACCT:$API_ID/*" >/dev/null 2>&1 || true
 done
-route() { aws apigatewayv2 create-route --api-id $API_ID --route-key "ANY $2" --target integrations/${INTEG[$1]} >/dev/null || true; }
+EXISTING_ROUTES=$(aws apigatewayv2 get-routes --api-id $API_ID --query "Items[].RouteKey" --output text | tr '\t' '\n')
+route() {   # create the route only if this exact method+path does not exist yet
+  grep -qxF "ANY $2" <<<"$EXISTING_ROUTES" && return 0
+  aws apigatewayv2 create-route --api-id $API_ID --route-key "ANY $2" --target integrations/${INTEG[$1]} >/dev/null
+}
 # election-svc
 for R in /api/elections /api/elections/{id} /api/elections/{id}/transition /api/elections/{id}/positions /api/elections/{id}/readiness \
          /api/elections/{id}/eligible-students /api/elections/{id}/eligible-students/{studentId} \
@@ -87,7 +99,7 @@ echo "== 8. Frontend to S3 (frontend files only)"
 API_URL=http://$API_ID.execute-api.localhost.floci.io:4566
 sed "s#__API_URL__#$API_URL#" frontend/js/config.template.js > frontend/js/config.js
 aws s3 sync frontend s3://election-web --exclude "*.template.js" --exclude "node_modules/*" >/dev/null
-aws s3 cp frontend/css s3://election-web/css --recursive --content-type text/css >/dev/null
-aws s3 cp frontend/js  s3://election-web/js  --recursive --content-type text/javascript >/dev/null
+aws s3 cp frontend s3://election-web --recursive --exclude "*" --include "*.css" --content-type text/css >/dev/null
+aws s3 cp frontend s3://election-web --recursive --exclude "*" --include "*.js" --exclude "*.template.js" --content-type text/javascript >/dev/null
 
 echo; echo "API:  $API_URL/api/health"; echo "SITE: http://localhost:4566/election-web/index.html"

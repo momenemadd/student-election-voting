@@ -15,7 +15,7 @@ async function main() {
   for (const [, email, pw] of accounts) {
     if (!email || !pw || pw.length < 12) throw new Error('Set SEED_* email and password (>= 12 chars) in backend/.env');
   }
-  const client = new Client({ connectionString: process.env.DATABASE_URL, ssl: /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL || '') ? false : { rejectUnauthorized: true } });
+  const client = new Client({ connectionString: (process.env.DATABASE_URL || '').replace(/sslmode=require/, 'sslmode=verify-full'), ssl: /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL || '') ? false : { rejectUnauthorized: true } });
   await client.connect();
   for (const [role, email, pw] of accounts) {
     const hash = await bcrypt.hash(pw, 12);

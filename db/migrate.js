@@ -7,7 +7,7 @@ nm('dotenv').config({ path: path.join(__dirname, '..', 'backend', '.env') });
 const { Client } = nm('pg');
 
 (async () => {
-  const url = process.env.DATABASE_URL || '';
+  const url = (process.env.DATABASE_URL || '').replace(/sslmode=require/, 'sslmode=verify-full');
   const client = new Client({ connectionString: url, ssl: /localhost|127\.0\.0\.1/.test(url) ? false : { rejectUnauthorized: true } });
   await client.connect();
   await client.query(fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8'));
