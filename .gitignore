@@ -1,0 +1,14 @@
+node_modules/
+.env
+.env.*
+!.env.example
+*.zip
+out/
+.DS_Store
+.vscode/
+infra/lab-vars.sh
+docs/evidence/*.local.*
+# never commit AWS credentials or exports
+.aws/
+*.pem
+*.key

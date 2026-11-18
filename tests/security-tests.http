@@ -1,0 +1,53 @@
+### VS Code REST Client file. Fill variables, run each request, screenshot response -> docs/evidence/
+@api = http://localhost:3000
+@studentToken = PASTE_STUDENT_TOKEN
+@adminToken = PASTE_ADMIN_TOKEN
+@auditorToken = PASTE_AUDITOR_TOKEN
+@electionId = PASTE_ELECTION_UUID
+
+### ST-01 unauthenticated -> 401
+GET {{api}}/api/elections/{{electionId}}/turnout
+
+### ST-02 unauthorized role: student creates election -> 403
+POST {{api}}/api/elections
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{"title":"Hack","start_time":"2030-01-01T10:00:00Z","end_time":"2030-01-01T14:00:00Z"}
+
+### ST-02b admin reads audit log -> 403 (separation of duties)
+GET {{api}}/api/audit-logs
+Authorization: Bearer {{adminToken}}
+
+### ST-04 invalid input -> 400 (end before start)
+POST {{api}}/api/elections
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"title":"Bad dates","start_time":"2030-01-01T14:00:00Z","end_time":"2030-01-01T10:00:00Z"}
+
+### ST-04b mass assignment ignored (created_by/status not accepted from body)
+POST {{api}}/api/elections
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"title":"Mass assign test","start_time":"2030-01-01T10:00:00Z","end_time":"2030-01-01T14:00:00Z","status":"OPEN","created_by":"00000000-0000-0000-0000-000000000000"}
+
+### ST-05 SQL injection attempt in id -> 400
+GET {{api}}/api/elections/1'%20OR%20'1'='1/turnout
+Authorization: Bearer {{adminToken}}
+
+### ST-10 tampered token -> 401
+GET {{api}}/api/me
+Authorization: Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhZG1pbiIsInJvbGUiOiJBRE1JTiJ9.
+
+### ST-11 brute force: send this 6 times with a wrong password -> 401 x5 then 423
+POST {{api}}/api/auth/login
+Content-Type: application/json
+
+{"email":"student1@example.edu","password":"wrong-password-123","turnstileToken":"XXXX.DUMMY.TOKEN"}
+
+### ST-17 CORS from evil origin -> no Access-Control-Allow-Origin header
+OPTIONS {{api}}/api/elections
+Origin: http://evil.example
+Access-Control-Request-Method: POST

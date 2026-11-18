@@ -1,0 +1,10 @@
+# Floci = local AWS emulator. If your Lab 7 starter has its own infra/floci/docker-compose.yml, use that one instead.
+# Start:  docker compose -f infra/floci/docker-compose.yml up -d
+# UI:     http://localhost:4566/_floci/ui
+services:
+  floci:
+    image: floci/floci:latest
+    ports:
+      - "4566:4566"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock   # Floci starts Lambda containers through Docker

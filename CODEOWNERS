@@ -1,0 +1,10 @@
+# Replace the placeholders with the real GitHub usernames. Proves per-student ownership of folders.
+/backend/services/election/   @momenemadd
+/frontend/admin/              @momenemadd
+/infra/                       @momenemadd
+/backend/services/voting/     @mohamed246405
+/backend/shared/              @mohamed246405
+/frontend/student/            @mohamed246405
+/backend/services/results/    @momenemadd  # TODO: replace with Mohamed Khaled's username
+/frontend/auditor/            @momenemadd  # TODO: replace with Mohamed Khaled's username
+/docs/                        @momenemadd  # TODO: replace with Mohamed Khaled's username

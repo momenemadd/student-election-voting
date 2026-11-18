@@ -1,0 +1,9 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    { "Effect": "Allow", "Action": ["secretsmanager:GetSecretValue"], "Resource": "arn:aws:secretsmanager:us-east-1:000000000000:secret:election/app-secrets*" },
+    { "Effect": "Allow", "Action": ["dynamodb:Query", "dynamodb:PutItem"], "Resource": "arn:aws:dynamodb:us-east-1:000000000000:table/AuditLog" },
+    { "Effect": "Allow", "Action": ["s3:PutObject", "s3:GetObject"], "Resource": "arn:aws:s3:::election-results/snapshots/*" },
+    { "Effect": "Allow", "Action": ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"], "Resource": "*" }
+  ]
+}

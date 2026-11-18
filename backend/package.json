@@ -1,0 +1,29 @@
+{
+  "name": "election-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Student Election Voting - three services (election, voting, results) sharing one codebase; run locally with server.js or on Lambda via lambda/*.js",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "migrate": "node ../db/migrate.js",
+    "seed": "node ../db/seed.js",
+    "zip": "node ../infra/zip.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.700.0",
+    "@aws-sdk/client-secrets-manager": "^3.700.0",
+    "@aws-sdk/lib-dynamodb": "^3.700.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.0",
+    "serverless-http": "^3.2.0"
+  },
+  "devDependencies": {
+    "adm-zip": "^0.5.16"
+  }
+}
