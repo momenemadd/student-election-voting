@@ -6,7 +6,9 @@ const { loadSecrets } = require('./config');
 let pool;
 async function getPool() {
   if (!pool) {
-    const { DATABASE_URL } = await loadSecrets();
+    // sslmode=require already means full certificate checks in node-postgres; say so explicitly
+    // (verify-full) so the driver does not print a warning into every CloudWatch log stream.
+    const DATABASE_URL = (await loadSecrets()).DATABASE_URL.replace(/sslmode=(require|prefer|verify-ca)/, 'sslmode=verify-full');
     const onLambda = !!process.env.AWS_LAMBDA_FUNCTION_NAME;
     pool = new Pool({
       connectionString: DATABASE_URL,

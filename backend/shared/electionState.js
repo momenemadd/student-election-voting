@@ -40,20 +40,24 @@ function timeBasedStatus(election, now = new Date()) {
   return status;
 }
 
-// Apply time-based transitions in the database and return the fresh election row (or undefined).
+// SQL fragment: which rows need a time-based change, and what the new status is (DB clock).
+const DUE = `((status IN ('SCHEDULED','OPEN') AND end_time <= now()) OR (status = 'SCHEDULED' AND start_time <= now()))`;
+const NEXT = `CASE WHEN end_time <= now() THEN 'CLOSED' ELSE 'OPEN' END`;
+
+// Apply time-based transitions and return the fresh election row (or undefined).
+// ONE database round trip: update-if-due and read happen in the same statement.
 async function syncStatus(runQuery, electionId) {
-  await runQuery(
-    `UPDATE elections SET status='CLOSED', updated_at=now()
-      WHERE election_id=$1 AND status IN ('SCHEDULED','OPEN') AND end_time <= now()`,
+  const { rows } = await runQuery(
+    `WITH upd AS (
+       UPDATE elections SET status = ${NEXT}, updated_at = now()
+        WHERE election_id = $1 AND ${DUE}
+        RETURNING *)
+     SELECT * FROM upd
+     UNION ALL
+     SELECT * FROM elections WHERE election_id = $1 AND NOT EXISTS (SELECT 1 FROM upd)`,
     [electionId]
   );
-  await runQuery(
-    `UPDATE elections SET status='OPEN', updated_at=now()
-      WHERE election_id=$1 AND status='SCHEDULED' AND start_time <= now() AND end_time > now()`,
-    [electionId]
-  );
-  const { rows } = await runQuery('SELECT * FROM elections WHERE election_id=$1', [electionId]);
   return rows[0];
 }
 
-module.exports = { TRANSITIONS, canTransition, assertTransition, canEditSetup, canEditDetails, timeBasedStatus, syncStatus };
+module.exports = { TRANSITIONS, canTransition, assertTransition, canEditSetup, canEditDetails, timeBasedStatus, syncStatus, DUE, NEXT };

@@ -15,7 +15,7 @@ module.exports = function register(app) {
     await verifyTurnstile(b.turnstileToken, req.ip);
 
     const { rows } = await query(
-      'SELECT user_id, role, password_hash, token_version, email_verified, locked_until FROM users WHERE email = $1',
+      'SELECT user_id, role, password_hash, token_version, email_verified, failed_logins, locked_until FROM users WHERE email = $1',
       [email]
     );
     const user = rows[0];
@@ -43,7 +43,9 @@ module.exports = function register(app) {
     }
     if (!user.email_verified) throw new AppError(403, 'EMAIL_NOT_VERIFIED', 'Verify your email first');
 
-    await query('UPDATE users SET failed_logins = 0, locked_until = NULL WHERE user_id = $1', [user.user_id]);
+    if (user.failed_logins > 0 || user.locked_until) { // skip the extra database trip when nothing to reset
+      await query('UPDATE users SET failed_logins = 0, locked_until = NULL WHERE user_id = $1', [user.user_id]);
+    }
     audit.record({ actor_id: user.user_id, role: user.role, action: 'LOGIN_OK', resource: 'auth:login' });
     res.status(200).json({ token: await signToken(user), user: { id: user.user_id, role: user.role } });
   });
