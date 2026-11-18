@@ -1,10 +1,23 @@
-# Replace the placeholders with the real GitHub usernames. Proves per-student ownership of folders.
-/backend/services/election/   @momenemadd
-/frontend/admin/              @momenemadd
-/infra/                       @momenemadd
-/backend/services/voting/     @mohamed246405
-/backend/shared/              @momenemadd
-/frontend/student/            @mohamed246405
-/backend/services/results/    @momenemadd  # TODO: replace with Mohamed Khaled's username
-/frontend/auditor/            @momenemadd  # TODO: replace with Mohamed Khaled's username
-/docs/                        @momenemadd  # TODO: replace with Mohamed Khaled's username
+# Who owns which files. The LAST matching line wins, so specific paths come after general ones.
+# Each student only edits their own paths (see docs/GUIDE_FOUDA.md and docs/GUIDE_MOHAMED_KHALED.md, Part 0).
+# TODO: replace @MOHAMED_KHALED_GITHUB with Mohamed Khaled's real GitHub username.
+
+# ---- Mo'men (momenemadd): Election Management, shared code, infrastructure, database ----
+*                                   @momenemadd
+
+# ---- Fouda / Mohamed Osama (mohamed246405): Voting ----
+/backend/services/voting/           @mohamed246405
+/db/migrations/001_voting.sql       @mohamed246405
+/frontend/index.html                @mohamed246405
+/frontend/js/index.js               @mohamed246405
+/frontend/register.html             @mohamed246405
+/frontend/js/register.js            @mohamed246405
+/frontend/student/                  @mohamed246405
+/tests/voting-e2e.js                @mohamed246405
+
+# ---- Mohamed Khaled: Results & Audit, final report ----
+/backend/services/results/          @MOHAMED_KHALED_GITHUB
+/frontend/results/                  @MOHAMED_KHALED_GITHUB
+/frontend/auditor/                  @MOHAMED_KHALED_GITHUB
+/tests/results-e2e.js               @MOHAMED_KHALED_GITHUB
+/docs/REPORT_DRAFT.md               @MOHAMED_KHALED_GITHUB

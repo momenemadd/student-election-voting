@@ -47,6 +47,8 @@ Words you will hear: **Lambda** = code that runs only when a request arrives · 
 | Make repo **Public** before submission; final commit/push | Mo'men, last step |
 
 ## 4. Who does what (each person owns frontend + backend + data + security + tests for their service)
+**Step-by-step guides:** Fouda (Mohamed Osama) → [`docs/GUIDE_FOUDA.md`](GUIDE_FOUDA.md) · Mohamed Khaled → [`docs/GUIDE_MOHAMED_KHALED.md`](GUIDE_MOHAMED_KHALED.md). Each explains the project in simple words, what Mo'men already finished, the to-do list day by day, every endpoint, page, test, screenshot and report section, what happens after all three finish, and a "done" checklist.
+
 Full endpoint tables with status codes: `FINAL_PHASE_PLAN.md` §5. Code locations have `TODO` comments.
 
 **Mo'men – Election Management** (`backend/services/election/routes.js`, `frontend/admin/`)
