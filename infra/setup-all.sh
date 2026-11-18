@@ -18,9 +18,12 @@ aws dynamodb create-table --table-name AuditLog \
 aws dynamodb create-table --table-name RateLimits \
   --attribute-definitions AttributeName=pk,AttributeType=S --key-schema AttributeName=pk,KeyType=HASH \
   --billing-mode PAY_PER_REQUEST >/dev/null || echo "(RateLimits exists)"
+# rate-limit counters delete themselves: items carry expires_at (epoch seconds)
+aws dynamodb update-time-to-live --table-name RateLimits \
+  --time-to-live-specification "Enabled=true,AttributeName=expires_at" >/dev/null 2>&1 || true
 
 echo "== 2. Secrets Manager (value built from backend/.env, not printed)"
-SECRET_JSON=$(node -e "require('./backend/node_modules/dotenv').config({path:'$ENV_FILE',quiet:true});const e=process.env;console.log(JSON.stringify({DATABASE_URL:e.DATABASE_URL,JWT_SECRET:e.JWT_SECRET,TURNSTILE_SECRET_KEY:e.TURNSTILE_SECRET_KEY,MAIL_API_KEY:e.MAIL_API_KEY||''}))")
+SECRET_JSON=$(node -e "require('./backend/node_modules/dotenv').config({path:'$ENV_FILE',quiet:true});const e=process.env;console.log(JSON.stringify({DATABASE_URL:e.DATABASE_URL,JWT_SECRET:e.JWT_SECRET,TURNSTILE_SECRET_KEY:e.TURNSTILE_SECRET_KEY,MAIL_API_KEY:e.MAIL_API_KEY||'',MAIL_FROM:e.MAIL_FROM||''}))")
 aws secretsmanager create-secret --name election/app-secrets --secret-string "$SECRET_JSON" >/dev/null \
   || aws secretsmanager put-secret-value --secret-id election/app-secrets --secret-string "$SECRET_JSON" >/dev/null
 
@@ -42,7 +45,7 @@ done
 echo "== 5. Lambda package + functions"
 ( cd backend && npm install --omit=dev >/dev/null && npm install --no-save adm-zip >/dev/null && npm run zip )
 for SVC in election voting results; do
-  ENVVARS="Variables={SECRETS_ID=election/app-secrets,AUDIT_TABLE=AuditLog,RATE_TABLE=RateLimits,CORS_ORIGINS=http://localhost:4566,NODE_ENV=production}"
+  ENVVARS="Variables={SECRETS_ID=election/app-secrets,AUDIT_TABLE=AuditLog,RATE_TABLE=RateLimits,RESULTS_BUCKET=election-results,CORS_ORIGINS=http://localhost:4566,NODE_ENV=production}"
   if aws lambda get-function --function-name $SVC-svc >/dev/null 2>&1; then
     aws lambda update-function-code --function-name $SVC-svc --zip-file fileb://backend/lambda.zip >/dev/null
     aws lambda wait function-updated-v2 --function-name $SVC-svc

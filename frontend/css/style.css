@@ -68,6 +68,8 @@ button.link:hover { background: var(--brand-soft); }
 button.link.danger { color: var(--danger); }
 button.link.danger:hover { background: var(--danger-soft); }
 button:disabled, input:disabled, select:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+a.button-link { display: inline-block; padding: 10px 18px; background: var(--brand); color: #fff; border-radius: 10px; font-weight: 600; text-decoration: none; }
+a.button-link:hover { background: var(--brand-dark); }
 .actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); }
 .actions:empty { display: none; }
 .actions .hint { margin: 0; }

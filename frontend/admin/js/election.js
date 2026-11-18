@@ -64,6 +64,10 @@ function renderActions() {
   if (s === 'SCHEDULED') buttons.push(el('span', { class: 'hint', text: 'Opens automatically at the start time.' }));
   if (s === 'OPEN') buttons.push(el('span', { class: 'hint', text: 'Voting is open. Nothing can be changed now; it closes automatically at the end time.' }));
   if (s === 'CLOSED') buttons.push(el('span', { class: 'hint', text: 'Voting has closed. Counting and publishing the results happen next.' }));
+  // Results & Audit service (Khaled) owns the results page: count, publish, view
+  if (['CLOSED', 'TALLIED', 'PUBLISHED'].includes(s)) {
+    buttons.push(el('a', { class: 'button-link', href: '../results/index.html?id=' + enc(id), text: 'Open results' }));
+  }
   $('actions').replaceChildren(...buttons);
 }
 

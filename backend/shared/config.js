@@ -2,7 +2,7 @@
 // when SECRETS_ID is set (Floci / real AWS). Nothing sensitive is ever hard-coded here.
 require('dotenv').config();
 
-const KEYS = ['DATABASE_URL', 'JWT_SECRET', 'TURNSTILE_SECRET_KEY', 'MAIL_API_KEY'];
+const KEYS = ['DATABASE_URL', 'JWT_SECRET', 'TURNSTILE_SECRET_KEY', 'MAIL_API_KEY', 'MAIL_FROM'];
 let cache = null;
 
 async function loadSecrets() {
