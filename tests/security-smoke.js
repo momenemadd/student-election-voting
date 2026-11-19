@@ -27,6 +27,7 @@ const show = (name, exp, [s, j]) => console.log(`${s === exp ? 'PASS' : 'FAIL'} 
   const [s3, logs] = await call('GET', '/api/audit-logs', null, au.token); show('auditor reads audit', 200, [s3, logs]);
   console.log('      GLOBAL audit actions:', (logs || []).map((x) => x.action).join(', '));
   const [, v] = await call('GET', '/api/audit-logs/verify', null, au.token); console.log((v && v.valid ? 'PASS' : 'FAIL') + '  hash chain verify:', JSON.stringify(v));
+  await call('DELETE', `/api/elections/${el.election_id}`, null, a.token); // clean up: remove the test election (DRAFT)
   show('logout', 204, await call('POST', '/api/auth/logout', null, a.token));
   show('token after logout -> 401', 401, await call('GET', '/api/me', null, a.token));
 })();
