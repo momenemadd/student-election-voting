@@ -1,12 +1,12 @@
 // Rate limiter on DynamoDB table RATE_TABLE (AWS service of the Voting service).
-// One counter item per key (e.g. "login:1.2.3.4"). The first hit sets expires_at; DynamoDB TTL
+// One counter item per key (e.g. "login:1.2.3.4:a@uni.edu"). The first hit sets expires_at; DynamoDB TTL
 // deletes the item after the window, which resets the counter (fixed window).
 // When RATE_TABLE is not set (local PC) every request is allowed.
 const { AppError } = require('../../shared/errors');
 const audit = require('../../shared/audit');
 
 const LIMITS = {
-  login: [10, 300], // 10 tries per 5 minutes per IP
+  login: [10, 300], // 10 tries per 5 minutes per IP + e-mail
   register: [5, 600], // 5 per 10 minutes per IP
   otp: [5, 600], // 5 new codes per 10 minutes per e-mail
   vote: [10, 60], // 10 vote requests per minute per user

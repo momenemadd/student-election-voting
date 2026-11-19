@@ -60,9 +60,11 @@ const alreadyVoted = () => new AppError(409, 'ALREADY_VOTED', 'You have already 
 module.exports = function register(app) {
   // =========================== ACCOUNT ========================================================
   app.post('/api/auth/login', async (req, res) => {
-    await limit('login', req.ip);
     const b = pick(req.body, ['email', 'password', 'turnstileToken']);
     const email = v.email(b.email);
+    // Counted per address AND e-mail: on Floci every request arrives from 127.0.0.1, so a per-address
+    // limit alone would block everyone at once. Per account the lockout below still applies.
+    await limit('login', `${req.ip}:${email}`);
     const password = v.string(b.password, 'password', { min: 1, max: 200 });
     await verifyTurnstile(b.turnstileToken, req.ip);
 
