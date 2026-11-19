@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self' http://localhost:3000 http://*.execute-api.localhost.floci.io:4566; style-src 'self'">
+  <title>My receipt – Student</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="student.css">
+</head>
+<body data-root="../">
+  <header></header>
+  <main>
+    <p id="flash" class="flash" role="alert"></p>
+    <a class="back" href="index.html">← My elections</a>
+    <section id="receipt" class="card" hidden>
+      <h2>Vote receipt</h2>
+      <table>
+        <tbody>
+          <tr><th>Election</th><td id="r-title"></td></tr>
+          <tr><th>Voted on</th><td id="r-date"></td></tr>
+          <tr><th>Receipt reference</th><td><code id="r-ref"></code></td></tr>
+        </tbody>
+      </table>
+      <p class="hint">The reference is the first 8 characters of the SHA-256 fingerprint of your receipt code. We never store the code itself, and the receipt is not linked to your choices.</p>
+      <form id="check-form" class="row">
+        <input id="check-code" placeholder="Paste your receipt code to check it" maxlength="40" required>
+        <button type="submit" class="secondary">Check my code</button>
+      </form>
+    </section>
+  </main>
+  <script src="../js/config.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/ui.js"></script>
+  <script src="js/receipt.js"></script>
+</body>
+</html>

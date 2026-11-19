@@ -14,14 +14,17 @@
       <h2>Sign in</h2>
       <label>Email <input id="email" type="email" required autocomplete="username"></label>
       <label>Password <input id="password" type="password" required autocomplete="current-password"></label>
-      <!-- TODO: add the Turnstile widget (site key is public) and send its token as turnstileToken -->
+      <!-- Cloudflare Turnstile (site key is public). 1x00000000000000000000AA = Cloudflare's test key; replace with the real one. -->
+      <div class="cf-turnstile" data-sitekey="1x00000000000000000000AA"></div>
       <button type="submit">Sign in</button>
       <p id="message" role="alert"></p>
+      <p class="hint">Student without an account? <a href="register.html">Create account</a></p>
     </form>
     <!-- TODO per owner: admin/ (Mo'men), student/ (Osama), auditor/ (Khaled) pages share this nav + api.js -->
   </main>
   <script src="js/config.js"></script>
   <script src="js/api.js"></script>
   <script src="js/index.js"></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </body>
 </html>

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; connect-src 'self' http://localhost:3000 http://*.execute-api.localhost.floci.io:4566; style-src 'self'">
+  <title>Create account – Student Election Voting</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="student/student.css">
+</head>
+<body data-root="">
+  <header><h1>Student Election Voting</h1></header>
+  <main>
+    <p id="flash" class="flash" role="alert"></p>
+
+    <form id="register-form" class="card">
+      <h2>Create your student account</h2>
+      <p class="hint">Use the student number and the email the university has on its student list.</p>
+      <label>Student number <input id="r-number" required minlength="4" maxlength="12" pattern="[A-Za-z0-9]{4,12}" autocomplete="username"></label>
+      <label>University email <input id="r-email" type="email" required maxlength="254" autocomplete="email"></label>
+      <label>Password (at least 12 characters) <input id="r-password" type="password" required minlength="12" maxlength="200" autocomplete="new-password"></label>
+      <label>Repeat password <input id="r-password2" type="password" required minlength="12" maxlength="200" autocomplete="new-password"></label>
+      <!-- 1x00000000000000000000AA = Cloudflare's test site key; replace with the real one. -->
+      <div class="cf-turnstile" data-sitekey="1x00000000000000000000AA"></div>
+      <button type="submit">Create account</button>
+      <p class="hint">Already have an account? <a href="index.html">Sign in</a></p>
+    </form>
+
+    <form id="verify-form" class="card" hidden>
+      <h2>Check your email</h2>
+      <p class="hint" id="v-info">We sent a 6-digit code to your email. It is valid for 10 minutes.</p>
+      <label>Email <input id="v-email" type="email" required maxlength="254"></label>
+      <label>6-digit code <input id="v-code" required inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="one-time-code"></label>
+      <div class="row">
+        <button type="submit">Verify email</button>
+        <button type="button" id="resend" class="link">Send a new code</button>
+      </div>
+    </form>
+
+    <section id="done" class="card" hidden>
+      <h2>Email verified ✔</h2>
+      <p class="hint">Your account is ready.</p>
+      <a class="button-link" href="index.html">Go to sign in</a>
+    </section>
+  </main>
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/register.js"></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+</body>
+</html>
