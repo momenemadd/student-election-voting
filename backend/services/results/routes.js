@@ -42,7 +42,7 @@ module.exports = function register(app) {
       await audit.recordStrict({
         actor_id: req.user.id, role: req.user.role, action: 'INTEGRITY_MISMATCH',
         resource: `election:${id}:ballots=${chk.ballots}:receipts=${chk.receipts}`,
-        outcome: 'FAILURE', election_id: id,
+        outcome: 'FAILED', election_id: id,
       });
       throw new AppError(409, 'INTEGRITY_MISMATCH', 'Number of ballots does not match number of vote receipts');
     }
@@ -88,7 +88,7 @@ module.exports = function register(app) {
     await audit.recordStrict({
       actor_id: req.user.id, role: req.user.role, action: 'RESULTS_TALLIED',
       resource: `election:${id}:sha256=${hash.slice(0, 12)}`,
-      outcome: 'SUCCESS', election_id: id,
+      outcome: 'OK', election_id: id,
     });
     res.status(200).json(await loadSnapshot(id, 'TALLIED'));
   });
