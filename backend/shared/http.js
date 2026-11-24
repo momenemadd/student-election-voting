@@ -1,11 +1,31 @@
 // Builds an Express app with the common middleware stack. Every service uses it.
+const crypto = require('crypto');
 const express = require('express');
 const cors = require('cors');
 const { corsOrigins } = require('./config');
 const { requestLogger } = require('./logger');
 const { notFound, errorHandler } = require('./errors');
+const { apiLimiter } = require('./limiter');
 
 const MAX_BODY = 100 * 1024;
+
+// Which copy of the backend answered (Lab 8: round robin, k6 "served_by" counts).
+// Workers started by infra/scale-test.sh get INSTANCE_ID (ecs-task-1, ecs-task-2 ...);
+// a Lambda container gets a random id once, so each warm container has its own name.
+const INSTANCE_ID = process.env.INSTANCE_ID
+  || (process.env.AWS_LAMBDA_FUNCTION_NAME ? 'lambda-' + crypto.randomUUID().slice(0, 6) : 'pc');
+
+// Lab 8 security layer: security headers on EVERY answer (JSON API: nothing may be framed or run).
+function securityHeaders(req, res, next) {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
+    'Referrer-Policy': 'no-referrer',
+    'X-Instance-Id': INSTANCE_ID,
+  });
+  next();
+}
 
 // On Lambda, serverless-http hands Express the request body as a raw Buffer, and Express 5's
 // JSON parser then skips it. Parse it here with the same limits and error types as express.json.
@@ -26,8 +46,17 @@ function lambdaBody(req, res, next) {
 function createApp(serviceName) {
   const app = express();
   app.disable('x-powered-by');
+  // Behind OUR load balancer (Lab 8 scale mode) the client address comes from X-Forwarded-For,
+  // which the load balancer overwrites. Otherwise the header is ignored (no rate-limit bypass).
+  if (process.env.TRUST_LB === 'true') app.set('trust proxy', 'loopback');
   app.use(requestLogger(serviceName));
-  app.use(cors({ origin: corsOrigins(), methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] })); // exact origins, never '*'
+  app.use(securityHeaders);
+  app.use(cors({
+    origin: corsOrigins(),
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    exposedHeaders: ['X-Instance-Id', 'Retry-After'],
+  })); // exact origins, never '*'
+  app.use(apiLimiter);
   app.use(lambdaBody);
   app.use(express.json({ limit: '100kb' }));
 
@@ -38,6 +67,7 @@ function createApp(serviceName) {
       status: 'ok',
       service: serviceName,
       runtime: process.env.AWS_LAMBDA_FUNCTION_NAME ? 'lambda' : 'pc',
+      instanceId: INSTANCE_ID,
       environment: process.env.NODE_ENV || 'development',
     });
   });
@@ -51,4 +81,4 @@ function finish(app) {
   return app;
 }
 
-module.exports = { createApp, finish };
+module.exports = { createApp, finish, INSTANCE_ID };

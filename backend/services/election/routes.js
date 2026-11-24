@@ -108,9 +108,9 @@ function validateStudent(b, { partial = false } = {}) {
     if (!STUDENT_NUMBER.test(sn)) throw new AppError(400, 'VALIDATION_ERROR', 'student_number must be 4-12 letters/digits', { field: 'student_number' });
     out.student_number = sn;
   }
-  if (!partial || b.full_name !== undefined) out.full_name = v.string(b.full_name, 'full_name', { min: 2, max: 100 });
+  if (!partial || b.full_name !== undefined) out.full_name = v.text(b.full_name, 'full_name', { min: 2, max: 100 });
   if (!partial || b.email !== undefined) out.email = v.email(b.email);
-  if (b.faculty !== undefined && b.faculty !== null && b.faculty !== '') out.faculty = v.string(b.faculty, 'faculty', { min: 1, max: 80 });
+  if (b.faculty !== undefined && b.faculty !== null && b.faculty !== '') out.faculty = v.text(b.faculty, 'faculty', { min: 1, max: 80 });
   if (b.active !== undefined) {
     if (typeof b.active !== 'boolean') throw new AppError(400, 'VALIDATION_ERROR', 'active must be true or false', { field: 'active' });
     out.active = b.active;
@@ -126,8 +126,8 @@ module.exports = function register(app) {
   // POST /api/elections - create (Admin). Status always starts as DRAFT; created_by comes from the token.
   app.post('/api/elections', ...admin, async (req, res) => {
     const b = pick(req.body, ['title', 'description', 'start_time', 'end_time']); // whitelist (mass assignment)
-    const title = v.string(b.title, 'title', { min: 3, max: 120 });
-    const description = b.description === undefined ? '' : v.string(b.description, 'description', { min: 0, max: 1000 });
+    const title = v.text(b.title, 'title', { min: 3, max: 120 });
+    const description = b.description === undefined ? '' : v.text(b.description, 'description', { min: 0, max: 1000 });
     const start = v.date(b.start_time, 'start_time');
     const end = v.date(b.end_time, 'end_time');
     validateWindow(start, end);
@@ -187,8 +187,8 @@ module.exports = function register(app) {
     const e = await getElection(req.params.id);
     assertOwner(e, req.user);
     if (!canEditDetails(e.status)) throw new AppError(409, 'ELECTION_LOCKED', `Election details cannot change once it is ${e.status}`);
-    const title = b.title === undefined ? e.title : v.string(b.title, 'title', { min: 3, max: 120 });
-    const description = b.description === undefined ? e.description : v.string(b.description, 'description', { min: 0, max: 1000 });
+    const title = b.title === undefined ? e.title : v.text(b.title, 'title', { min: 3, max: 120 });
+    const description = b.description === undefined ? e.description : v.text(b.description, 'description', { min: 0, max: 1000 });
     const start = b.start_time === undefined ? new Date(e.start_time) : v.date(b.start_time, 'start_time');
     const end = b.end_time === undefined ? new Date(e.end_time) : v.date(b.end_time, 'end_time');
     validateWindow(start, end);
@@ -264,7 +264,7 @@ module.exports = function register(app) {
     const e = await getElection(req.params.id);
     assertOwner(e, req.user);
     assertSetupEditable(e);
-    const title = v.string(b.title, 'title', { min: 2, max: 80 });
+    const title = v.text(b.title, 'title', { min: 2, max: 80 });
     const max = b.max_selections === undefined ? 1 : v.int(b.max_selections, 'max_selections', { min: 1, max: 10 });
     const { rows } = await query('INSERT INTO positions(election_id, title, max_selections) VALUES($1,$2,$3) RETURNING *', [e.election_id, title, max]);
     log(req, 'POSITION_CREATED', `position:${rows[0].position_id}`, e.election_id);
@@ -278,7 +278,7 @@ module.exports = function register(app) {
     const { position, election } = await getPosition(req.params.id);
     assertOwner(election, req.user);
     assertSetupEditable(election);
-    const title = b.title === undefined ? position.title : v.string(b.title, 'title', { min: 2, max: 80 });
+    const title = b.title === undefined ? position.title : v.text(b.title, 'title', { min: 2, max: 80 });
     const max = b.max_selections === undefined ? position.max_selections : v.int(b.max_selections, 'max_selections', { min: 1, max: 10 });
     const { rows } = await query('UPDATE positions SET title=$2, max_selections=$3 WHERE position_id=$1 RETURNING *', [position.position_id, title, max]);
     log(req, 'POSITION_UPDATED', `position:${position.position_id}`, election.election_id);
@@ -301,8 +301,8 @@ module.exports = function register(app) {
     const { position, election } = await getPosition(req.params.id);
     assertOwner(election, req.user);
     assertSetupEditable(election);
-    const name = v.string(b.name, 'name', { min: 2, max: 80 });
-    const manifesto = b.manifesto === undefined ? '' : v.string(b.manifesto, 'manifesto', { min: 0, max: 1000 });
+    const name = v.text(b.name, 'name', { min: 2, max: 80 });
+    const manifesto = b.manifesto === undefined ? '' : v.text(b.manifesto, 'manifesto', { min: 0, max: 1000 });
     const { rows } = await query('INSERT INTO candidates(position_id, name, manifesto) VALUES($1,$2,$3) RETURNING *', [position.position_id, name, manifesto]);
     log(req, 'CANDIDATE_CREATED', `candidate:${rows[0].candidate_id}`, election.election_id);
     res.status(201).json(rows[0]);
@@ -315,8 +315,8 @@ module.exports = function register(app) {
     const { candidate, election } = await getCandidate(req.params.id);
     assertOwner(election, req.user);
     assertSetupEditable(election);
-    const name = b.name === undefined ? candidate.name : v.string(b.name, 'name', { min: 2, max: 80 });
-    const manifesto = b.manifesto === undefined ? candidate.manifesto : v.string(b.manifesto, 'manifesto', { min: 0, max: 1000 });
+    const name = b.name === undefined ? candidate.name : v.text(b.name, 'name', { min: 2, max: 80 });
+    const manifesto = b.manifesto === undefined ? candidate.manifesto : v.text(b.manifesto, 'manifesto', { min: 0, max: 1000 });
     const { rows } = await query('UPDATE candidates SET name=$2, manifesto=$3 WHERE candidate_id=$1 RETURNING *', [candidate.candidate_id, name, manifesto]);
     log(req, 'CANDIDATE_UPDATED', `candidate:${candidate.candidate_id}`, election.election_id);
     res.status(200).json(rows[0]);

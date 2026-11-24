@@ -43,10 +43,18 @@ function dynamoStore() {
       return r.Items;
     },
     async all(pk) {
-      const r = await db.send(new QueryCommand({
-        TableName: T, KeyConditionExpression: 'pk = :p', ExpressionAttributeValues: { ':p': pk }, ConsistentRead: true,
-      }));
-      return r.Items;
+      // DynamoDB returns at most 1 MB per query: follow LastEvaluatedKey so the whole chain is checked.
+      const items = [];
+      let start;
+      do {
+        const r = await db.send(new QueryCommand({
+          TableName: T, KeyConditionExpression: 'pk = :p', ExpressionAttributeValues: { ':p': pk },
+          ConsistentRead: true, ExclusiveStartKey: start,
+        }));
+        items.push(...r.Items);
+        start = r.LastEvaluatedKey;
+      } while (start);
+      return items;
     },
   };
 }

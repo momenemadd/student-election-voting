@@ -6,6 +6,13 @@ const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
 
 const bad = (message, field) => new AppError(400, 'VALIDATION_ERROR', message, { field });
 
+// Lab 8 security layer: sanitising. <script> blocks (with their content) and any other HTML tags are
+// removed before saving. (Lab 8 also escapes < > & " ' - our pages always show text with textContent,
+// so escaping is not needed and would show "&amp;" to users.) Used for free text only, never passwords.
+const sanitize = (s) => s
+  .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
+  .replace(/<\/?[a-z!][^>]*>/gi, '');
+
 const v = {
   uuid(x, name) {
     if (typeof x !== 'string' || !UUID.test(x)) throw bad(`${name} must be a valid UUID`, name);
@@ -16,6 +23,14 @@ const v = {
     const t = x.trim();
     if (t.length < min || t.length > max) throw bad(`${name} must be ${min}-${max} characters`, name);
     return t;
+  },
+  // Free text (titles, names, descriptions): length checked first (too long -> 400), then sanitised.
+  text(x, name, { min = 1, max = 255 } = {}) {
+    if (typeof x !== 'string') throw bad(`${name} must be a string`, name);
+    if (x.trim().length > max) throw bad(`${name} must be at most ${max} characters`, name);
+    const clean = sanitize(x.trim()).trim();
+    if (clean.length < min) throw bad(`${name} must be ${min}-${max} characters (HTML is not allowed)`, name);
+    return clean;
   },
   email(x, name = 'email') {
     const t = v.string(x, name, { min: 5, max: 254 }).toLowerCase();
@@ -43,4 +58,4 @@ function pick(obj, allowed) {
   return Object.fromEntries(allowed.filter((k) => obj[k] !== undefined).map((k) => [k, obj[k]]));
 }
 
-module.exports = { v, pick, UUID };
+module.exports = { v, pick, UUID, sanitize };
