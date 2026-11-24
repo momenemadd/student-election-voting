@@ -15,3 +15,6 @@ docs/evidence/*.local.*
 
 # Lab 8 scale runs (pids, worker logs)
 infra/.run/
+
+# demo video is uploaded to a video site, not committed
+*.mp4
