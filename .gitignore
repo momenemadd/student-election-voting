@@ -12,3 +12,6 @@ docs/evidence/*.local.*
 .aws/
 *.pem
 *.key
+
+# Lab 8 scale runs (pids, worker logs)
+infra/.run/
