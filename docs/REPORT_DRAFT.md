@@ -38,7 +38,7 @@ Browser ──1─▶ Amazon S3  bucket election-web  (index.html, admin/, stude
               └────────▶ CloudWatch Logs /aws/lambda/<fn> + metric filter FailedLogins + alarm    │
             └───────────────────────────────────────────────────────────────────────────────────┘
    all 3 Lambdas ──5 SQL over TLS (pooled)──▶ Neon Postgres (managed, AWS eu-central-1)
-   voting-svc ──6 HTTPS──▶ Cloudflare Turnstile siteverify · Email API ⟨provider⟩
+   voting-svc ──6 HTTPS──▶ Cloudflare Turnstile siteverify · Brevo e-mail API
 ```
 
 ## 3. Services, API and data model
@@ -116,17 +116,17 @@ Enforced in the backend by `requireAuth` → `requireRole()` → ownership/state
 | Publish results | 401 | 403 | ✔ | 403 |
 | Audit log / verify chain | 401 | 403 | 403 | ✔ |
 
-## 5. External integration **[NEEDS email provider name]**
+## 5. External integration **[READY]**
 | Service | Workflow | Secret storage |
 |---|---|---|
 | Cloudflare Turnstile siteverify | Login, registration and vote are rejected (403 BOT_CHECK_FAILED) without a valid token | Secret key in AWS Secrets Manager `election/app-secrets`; site key is public |
-| ⟨Email provider⟩ API | Email verification code at registration, vote receipt | API key in Secrets Manager |
+| Brevo transactional e-mail API | 6-digit verification code at registration; vote receipt after voting (never the choices). If sending fails the vote is still stored | API key (transactional-email permission only) in Secrets Manager |
 Locally, secrets live in `backend/.env` (git-ignored); only `.env.example` with placeholders is committed.
 
 ## 6. Deployment approach **[READY]**
 Serverless on Floci (AWS emulator): S3 static website, API Gateway HTTP API, three Lambda functions (one per service, Express wrapped with serverless-http), IAM role per function, Secrets Manager, DynamoDB, CloudWatch Logs; Neon Postgres as managed external database. Floci runs in persistent mode (Docker volume) so state survives restarts; `infra/setup-all.sh` builds everything idempotently, `infra/deploy-code.sh` updates code.
 Why: same model as the labs, scales to zero, each owner has an independent deploy unit and role, no cost. Trade-offs: cold starts, Floci is not identical to AWS (IAM policies are stored but not enforced), HTTP on localhost instead of HTTPS, Neon free tier may suspend when idle.
-Deployed URLs: website `http://localhost:4566/election-web/index.html` · API `http://⟨api-id⟩.execute-api.localhost.floci.io:4566`.
+Deployed URLs: website `http://localhost:4566/election-web/index.html` · API `http://28a0b6493f.execute-api.localhost.floci.io:4566` (the id changes only if Floci is reset; `setup-all.sh` prints it).
 
 ## 7. Threat model **[READY]**
 | # | Threat | Area | Implemented control | Test |
@@ -162,6 +162,7 @@ https://github.com/momenemadd/student-election-voting · branches per owner · C
 
 ## 11. Log and monitoring evidence **[NEEDS screenshots]**
 Structured JSON log line per request (time, service, method, path, status, duration, hashed user id; never bodies, tokens or passwords). To capture: CloudWatch log group per function; filter `{ $.status = 403 }`; metric `FailedLogins` + alarm (≥5 in 5 min) triggered by ST-11; auditor "verify chain" result.
+Commands that work on Floci (for the screenshots): `aws logs filter-log-events --log-group-name /aws/lambda/voting-svc --filter-pattern 401` (failed logins: 17 lines in the last hour on 25 Nov), the same with `403` for denied access, and `SECURITY_ALERT` for rate-limit alerts; auditor page → Security summary and Verify chain (`docs/evidence/RS-auditor-*.jpg`). Limitation: Floci stores the `FailedLogins` metric filter and the alarm but does not turn log lines into metric values, so the alarm stays `INSUFFICIENT_DATA`; on real AWS (with Lambda's JSON log format turned on) the same setup would fire after 5 failures in 5 minutes.
 
 ## 12. Security test table **[READY – add screenshots]**
 | ID | Scenario | Expected | Actual (18 Nov, Floci) | Result |
@@ -176,7 +177,7 @@ Structured JSON log line per request (time, service, method, path, status, durat
 | ST-08 | Results before publish | 403/409 | student 403 RESULTS_NOT_PUBLISHED (RS-06); admin before counting 409 NOT_COUNTED (RS-08); student not listed 404 (RS-07) | PASS |
 | ST-09 | Secret exposure review (repo + history + website bucket) | none found | none in 47 committed files; `.env` → 404 on website | PASS |
 | ST-10 | Tampered token / token after logout | 401 | 401 / 401 | PASS |
-| ST-11 | Wrong password / unknown user / repeated failures | 401 same message; 423 after 5 | 401 / 401; ⟨lockout screenshot⟩ | PARTLY |
+| ST-11 | Wrong password / unknown user / repeated failures | 401 same message; 423 after 5 | 401 INVALID_CREDENTIALS for both; after 5 wrong passwords even the right one → 423 ACCOUNT_LOCKED, locked 15 min (25 Nov, Floci) | PASS |
 | ST-12 | Edit window, delete candidate, change eligibility while OPEN | 409 | 409 / 409 / 409 (EM-38..40) | PASS |
 | ST-13 | IAM review: role per function, no wildcard data actions | documented | `infra/iam/*.json` | PASS |
 | ST-14 | Audit chain verification | valid:true | valid:true | PASS |
@@ -223,6 +224,7 @@ Everything is code: `db/schema.sql` + `npm run migrate` recreate the database st
 | The general rate limiter counts in memory, so each worker/container counts separately (Lab 8 lesson) | simplicity, no extra service | shared counter (DynamoDB, as already used for login/vote) or API Gateway throttling |
 | p(95) above 500 ms under load | database in another region, all workers on one laptop | database in the same region, real separate compute |
 | ALB, ECS, Auto Scaling not used (local load balancer instead) | team decision: keep 7 AWS services | ECS service + ALB on real AWS |
+| Floci does not turn log lines into metric values, so the FailedLogins alarm never fires on Floci | emulator limitation | real CloudWatch with Lambda JSON log format |
 | The Voting end-to-end tests are run locally only | on Floci they would e-mail made-up addresses | a test inbox / e-mail sandbox |
 
 ---

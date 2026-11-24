@@ -122,4 +122,4 @@ Normally an election must last at least 60 minutes. For the live demo, allow 2-m
 (run `bash infra/setup-all.sh` afterwards to go back to 60).
 
 ## 10. Demo day checklist
-Start Docker Desktop (Floci starts by itself) → run `bash infra/deploy-code.sh` → open website, Floci dashboard, Neon, Postman → log in as admin/student/auditor in three browser profiles → show: create election → vote → duplicate vote (409) → student opens admin page (403) → tally → publish → auditor verify chain → CloudWatch failed-login alarm.
+Start Docker Desktop (Floci starts by itself) → run `bash infra/deploy-code.sh` → open website, Floci dashboard, Neon, Postman → log in as admin/student/auditor in three browser profiles → show: create election → vote → duplicate vote (409) → student opens admin page (403) → tally → publish → auditor verify chain → failed logins in CloudWatch Logs (`aws logs filter-log-events --log-group-name /aws/lambda/voting-svc --filter-pattern 401`; the alarm itself does not fire on Floci).
