@@ -89,7 +89,12 @@ module.exports = function register(app) {
   app.post('/api/elections/:id/tally', requireAuth, requireRole('ADMIN'), async (req, res) => {
     const election = await getElection(req.params.id);
     const id = election.election_id;
-    if (COUNTED.includes(election.status)) return res.status(200).json(await loadSnapshot(id, election.status));
+    if (COUNTED.includes(election.status)) {
+      const saved = await loadSnapshot(id, election.status);
+      // Added by Mo'men: put the S3 copy back if an earlier upload failed (same text, same hash).
+      if (snapshots.enabled()) await snapshots.ensure(id, canonicalStringify(saved.result));
+      return res.status(200).json(saved);
+    }
     if (election.status !== 'CLOSED') throw new AppError(409, 'NOT_CLOSED', 'Voting must be closed before counting');
 
     // Integrity check: every vote receipt must have exactly one ballot.
@@ -110,16 +115,25 @@ module.exports = function register(app) {
     const text = canonicalStringify(result);
     const hash = sha256(text);
 
-    await withTx(async (client) => {
-      await client.query(
-        `INSERT INTO result_snapshots (election_id, result_json, sha256) VALUES ($1, $2::jsonb, $3) ON CONFLICT DO NOTHING`,
-        [id, text, hash]
-      );
-      const upd = await client.query(
-        `UPDATE elections SET status = 'TALLIED', updated_at = now() WHERE election_id = $1 AND status = 'CLOSED'`, [id]
-      );
-      if (upd.rowCount === 0) throw new AppError(409, 'INVALID_TRANSITION', 'Election is no longer CLOSED');
-    });
+    try {
+      await withTx(async (client) => {
+        await client.query(
+          `INSERT INTO result_snapshots (election_id, result_json, sha256) VALUES ($1, $2::jsonb, $3) ON CONFLICT DO NOTHING`,
+          [id, text, hash]
+        );
+        const upd = await client.query(
+          `UPDATE elections SET status = 'TALLIED', updated_at = now() WHERE election_id = $1 AND status = 'CLOSED'`, [id]
+        );
+        if (upd.rowCount === 0) throw new AppError(409, 'INVALID_TRANSITION', 'Election is no longer CLOSED');
+      });
+    } catch (err) {
+      // Added by Mo'men: two admins pressed "Count" at the same moment. The other request already
+      // counted; answer with the saved result instead of an error (safe to call twice).
+      if (err.code !== 'INVALID_TRANSITION') throw err;
+      const now = await getElection(id);
+      if (!COUNTED.includes(now.status)) throw err;
+      return res.status(200).json(await loadSnapshot(id, now.status));
+    }
 
     if (snapshots.enabled()) await snapshots.put(id, text);   // second copy in S3 (snapshots/<id>.json)
 
@@ -181,7 +195,18 @@ module.exports = function register(app) {
     const { rows: [snap] } = await query(`SELECT result_json, sha256 FROM result_snapshots WHERE election_id = $1`, [id]);
     if (!snap) throw new AppError(409, 'NOT_COUNTED', 'Votes have not been counted yet');
 
-    const text = snapshots.enabled() ? await snapshots.get(id) : canonicalStringify(snap.result_json);
+    let text;
+    try {
+      text = snapshots.enabled() ? await snapshots.get(id) : canonicalStringify(snap.result_json);
+    } catch (err) {
+      // Added by Mo'men: the S3 file is gone (deleted or never uploaded) - say so clearly.
+      if (!snapshots.isMissing(err)) throw err;
+      await audit.recordStrict({
+        actor_id: req.user.id, role: req.user.role, action: 'SNAPSHOT_TAMPERED',
+        resource: `election:${id}:s3-file-missing`, outcome: 'FAILED', election_id: id,
+      });
+      throw new AppError(500, 'SNAPSHOT_MISSING', 'The saved results file is missing; count the votes again to restore it');
+    }
     if (sha256(text) !== snap.sha256) {
       await audit.recordStrict({
         actor_id: req.user.id, role: req.user.role, action: 'SNAPSHOT_TAMPERED',

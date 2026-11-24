@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self' http://localhost:3000 http://localhost:8080 http://*.execute-api.localhost.floci.io:4566; style-src 'self'">
+  <title>Results – Student Election Voting</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="results.css">
+</head>
+<body data-root="../">
+  <!-- Results & Audit service (owner: Mohamed Khaled). Page completed by Mo'men. -->
+  <header></header>
+  <main class="wide">
+    <p><a class="back" id="back" href="../index.html">← Back</a></p>
+    <p id="flash" class="flash" role="alert"></p>
+
+    <section class="card">
+      <div class="row title-row"><h2 id="title">Results</h2><span id="status"></span></div>
+      <p id="turnout" class="hint"></p>
+      <div id="actions" class="actions"></div>
+    </section>
+
+    <section class="card" id="results-card">
+      <h2>Results</h2>
+      <div id="results"><p class="hint">Loading…</p></div>
+      <p id="hash" class="hint mono"></p>
+    </section>
+
+    <section class="card" id="check-card" hidden>
+      <h2>Check the results</h2>
+      <p class="hint">Recount the votes from the ballots and compare with the saved fingerprint (SHA-256).</p>
+      <div class="row"><button id="recount" class="secondary">Recount and compare</button></div>
+      <p id="recount-result"></p>
+    </section>
+  </main>
+  <script src="../js/config.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/ui.js"></script>
+  <script src="js/results.js"></script>
+</body>
+</html>

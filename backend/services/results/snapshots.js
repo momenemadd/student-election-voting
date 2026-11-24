@@ -17,4 +17,20 @@ async function get(id) {
   return out.Body.transformToString();
 }
 
-module.exports = { enabled, put, get, keyOf };
+// Added by Mo'men: an S3 "object not found" answer, so callers can tell "missing" from other errors.
+const isMissing = (err) => !!err && (err.name === 'NoSuchKey' || err.name === 'NotFound' ||
+  (err.$metadata && err.$metadata.httpStatusCode === 404));
+
+// Added by Mo'men: if the upload after counting ever failed, counting again puts the file back.
+async function ensure(id, text) {
+  try {
+    await get(id);
+    return false; // already there
+  } catch (err) {
+    if (!isMissing(err)) throw err;
+    await put(id, text);
+    return true; // restored
+  }
+}
+
+module.exports = { enabled, put, get, keyOf, isMissing, ensure };

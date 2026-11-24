@@ -9,6 +9,9 @@ let bcrypt;
 try { bcrypt = require(path.join(backend, 'node_modules', 'bcryptjs')); } catch { bcrypt = require(path.join(backend, 'node_modules', 'bcrypt')); }
 
 const API = process.env.API || 'http://localhost:3000';
+// Added by Mo'men: against the deployed Floci API the saved results are in S3 and the audit log in DynamoDB.
+const ON_FLOCI = /floci/.test(API);
+const FLOCI = { endpoint: 'http://localhost:4566', region: 'us-east-1', credentials: { accessKeyId: 'test', secretAccessKey: 'test' } };
 const TS = 'XXXX.DUMMY.TOKEN', PW = 'RsTest-Pass-12345', stamp = Date.now();
 const made = { elections: [], users: [] };
 let failed = 0;
@@ -133,6 +136,16 @@ async function cleanup() {
     r = await call('POST', `/api/elections/${D.id}/tally`, { token: admin });
     check('RS-05', 'ballots != receipts -> 409 INTEGRITY_MISMATCH', r.status === 409 && code(r) === 'INTEGRITY_MISMATCH', r.text);
 
+    // RS-22 (added by Mo'men): two admins press "Count" at the same moment -> both get the saved result
+    const E = await makeElection('E', { voters: ['Ali', 'Sara'] });
+    const both = await Promise.all([
+      call('POST', `/api/elections/${E.id}/tally`, { token: admin }),
+      call('POST', `/api/elections/${E.id}/tally`, { token: admin }),
+    ]);
+    check('RS-22', 'two counts at the same moment -> both 200, same sha256',
+      both.every((x) => x.status === 200) && both[0].json.sha256 === both[1].json.sha256,
+      both.map((x) => x.status + ' ' + x.text.slice(0, 80)).join(' | '));
+
     // ---------- viewing + publishing ----------
     r = await call('GET', `/api/elections/${A.id}/results`, { token: studentIn });
     check('RS-06', 'student reads before publishing -> 403 RESULTS_NOT_PUBLISHED', r.status === 403 && code(r) === 'RESULTS_NOT_PUBLISHED', r.text);
@@ -170,7 +183,17 @@ async function cleanup() {
     r = await call('GET', `/api/elections/${A.id}/results/verify`, { token: admin });
     check('RS-21', 'ballot added after counting -> recount match: false', r.status === 200 && r.json.match === false, r.text);
 
-    if (!process.env.RESULTS_BUCKET) {
+    if (ON_FLOCI) {
+      // Added by Mo'men: on Floci the deployed app reads the S3 copy, so tamper with THAT file.
+      const { S3Client, GetObjectCommand, PutObjectCommand } = require(path.join(backend, 'node_modules', '@aws-sdk/client-s3'));
+      const s3 = new S3Client({ ...FLOCI, forcePathStyle: true });
+      const key = { Bucket: 'election-results', Key: `snapshots/${A.id}.json` };
+      const original = await (await s3.send(new GetObjectCommand(key))).Body.transformToString();
+      const forged = original.replace('"votes":3', '"votes":99');
+      await s3.send(new PutObjectCommand({ ...key, Body: forged, ContentType: 'application/json' }));
+      r = await call('GET', `/api/elections/${A.id}/results/export`, { token: admin });
+      check('RS-14', 'download after changing the saved S3 file -> 500 SNAPSHOT_TAMPERED', r.status === 500 && code(r) === 'SNAPSHOT_TAMPERED', r.text);
+    } else if (!process.env.RESULTS_BUCKET) {
       await query(`UPDATE result_snapshots SET result_json = jsonb_set(result_json, '{positions,0,candidates,0,votes}', '99'::jsonb) WHERE election_id = $1`, [A.id]);
       r = await call('GET', `/api/elections/${A.id}/results/export`, { token: admin });
       check('RS-14', 'download after changing the saved copy -> 500 SNAPSHOT_TAMPERED', r.status === 500 && code(r) === 'SNAPSHOT_TAMPERED', r.text);
@@ -183,7 +206,16 @@ async function cleanup() {
     r = await call('GET', '/api/audit-logs?from=not-a-date', { token: auditor });
     check('RS-16', 'audit filter with a wrong date -> 400', r.status === 400, r.text);
 
-    if (!process.env.AUDIT_TABLE) {
+    if (ON_FLOCI) {
+      // Added by Mo'men: on Floci the audit chain lives in DynamoDB AuditLog, so edit one record THERE.
+      const { DynamoDBClient } = require(path.join(backend, 'node_modules', '@aws-sdk/client-dynamodb'));
+      const { DynamoDBDocumentClient, UpdateCommand } = require(path.join(backend, 'node_modules', '@aws-sdk/lib-dynamodb'));
+      const ddb = DynamoDBDocumentClient.from(new DynamoDBClient(FLOCI));
+      await ddb.send(new UpdateCommand({ TableName: 'AuditLog', Key: { pk: A.id, seq: 1 },
+        UpdateExpression: 'SET #r = :t', ExpressionAttributeNames: { '#r': 'resource' }, ExpressionAttributeValues: { ':t': 'tampered' } }));
+      r = await call('GET', `/api/audit-logs/verify?election=${A.id}`, { token: auditor });
+      check('RS-17', 'change one DynamoDB audit record, then verify -> valid: false', r.status === 200 && r.json.valid === false, r.text);
+    } else if (!process.env.AUDIT_TABLE) {
       await query(`UPDATE audit_log SET resource = 'tampered' WHERE pk = $1 AND seq = (SELECT min(seq) FROM audit_log WHERE pk = $1)`, [A.id]);
       r = await call('GET', `/api/audit-logs/verify?election=${A.id}`, { token: auditor });
       check('RS-17', 'change one audit row, then verify -> valid: false', r.status === 200 && r.json.valid === false, r.text);

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self' http://localhost:3000 http://localhost:8080 http://*.execute-api.localhost.floci.io:4566; style-src 'self'">
+  <title>Audit – Student Election Voting</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="auditor.css">
+</head>
+<body data-root="../">
+  <!-- Results & Audit service (owner: Mohamed Khaled). Page completed by Mo'men. -->
+  <header></header>
+  <main class="wide">
+    <p id="flash" class="flash" role="alert"></p>
+
+    <section class="card">
+      <div class="row"><h2>Security summary</h2>
+        <label class="inline">Last <select id="hours"><option value="1">1 hour</option><option value="24" selected>24 hours</option><option value="168">7 days</option></select></label>
+      </div>
+      <p class="hint">Suspicious activity recorded in the audit log: wrong passwords, locked accounts, blocked requests.</p>
+      <div id="summary" class="stats"></div>
+      <h3 class="sub">Most blocked requests</h3>
+      <ul id="top-denied" class="plain"></ul>
+    </section>
+
+    <section class="card">
+      <h2>Elections</h2>
+      <table>
+        <thead><tr><th>Title</th><th>Status</th><th>Closes</th><th></th></tr></thead>
+        <tbody id="elections"></tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>Audit log</h2>
+      <p class="hint">Every important action, in a hash chain: each record holds the fingerprint of the one before it, so an edited or deleted record breaks the chain.</p>
+      <form id="filter" class="grid2">
+        <label>Log <select id="scope"><option value="">General (logins, access)</option></select></label>
+        <label>Action <input id="action" placeholder="e.g. LOGIN_FAILED" maxlength="40"></label>
+        <label>From <input id="from" type="datetime-local"></label>
+        <label>To <input id="to" type="datetime-local"></label>
+        <div class="form-actions"><button type="submit">Show</button><button type="button" id="verify" class="secondary">Verify chain</button></div>
+      </form>
+      <p id="verify-result"></p>
+      <table>
+        <thead><tr><th>#</th><th>Time</th><th>Action</th><th>Role</th><th>Resource</th><th>Outcome</th></tr></thead>
+        <tbody id="log"></tbody>
+      </table>
+    </section>
+  </main>
+  <script src="../js/config.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/ui.js"></script>
+  <script src="js/auditor.js"></script>
+</body>
+</html>

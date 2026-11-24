@@ -23,7 +23,7 @@ aws dynamodb update-time-to-live --table-name RateLimits \
   --time-to-live-specification "Enabled=true,AttributeName=expires_at" >/dev/null 2>&1 || true
 
 echo "== 2. Secrets Manager (value built from backend/.env, not printed)"
-SECRET_JSON=$(node -e "require('./backend/node_modules/dotenv').config({path:'$ENV_FILE',quiet:true});const e=process.env;console.log(JSON.stringify({DATABASE_URL:e.DATABASE_URL,JWT_SECRET:e.JWT_SECRET,TURNSTILE_SECRET_KEY:e.TURNSTILE_SECRET_KEY,MAIL_API_KEY:e.MAIL_API_KEY||'',MAIL_FROM:e.MAIL_FROM||''}))")
+SECRET_JSON=$(node -e "require('./backend/node_modules/dotenv').config({path:'$ENV_FILE',quiet:true});const e=process.env;console.log(JSON.stringify({DATABASE_URL:e.DATABASE_URL,JWT_SECRET:e.JWT_SECRET,TURNSTILE_SECRET_KEY:e.TURNSTILE_SECRET_KEY,MAIL_API_KEY:e.MAIL_API_KEY||'',MAIL_FROM:e.MAIL_FROM||'',rateLimitMax:Number(e.RATE_LIMIT_MAX)||300}))")
 aws secretsmanager create-secret --name election/app-secrets --secret-string "$SECRET_JSON" >/dev/null \
   || aws secretsmanager put-secret-value --secret-id election/app-secrets --secret-string "$SECRET_JSON" >/dev/null
 
@@ -87,7 +87,8 @@ for R in /api/elections /api/elections/{id} /api/elections/{id}/transition /api/
 for R in /api/auth/{action} /api/me /api/me/elections /api/elections/{id}/ballot /api/elections/{id}/votes /api/elections/{id}/receipt; do route voting "$R"; done
 # results-svc
 for R in /api/elections/{id}/turnout /api/elections/{id}/tally /api/elections/{id}/results /api/elections/{id}/results/publish \
-         /api/elections/{id}/results/export /api/audit-logs /api/audit-logs/verify /api/monitoring/security-summary; do route results "$R"; done
+         /api/elections/{id}/results/export /api/elections/{id}/results/verify \
+         /api/audit-logs /api/audit-logs/verify /api/monitoring/security-summary; do route results "$R"; done
 route election /api/health
 aws apigatewayv2 create-stage --api-id $API_ID --stage-name '$default' --auto-deploy >/dev/null 2>&1 || true
 
