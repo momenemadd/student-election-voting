@@ -1,0 +1,27 @@
+== 1. Floci and our 7 AWS services
+  PASS  Floci container is running
+  PASS  DynamoDB: AuditLog + RateLimits
+  PASS  S3: election-web + election-results
+  PASS  Secrets Manager: election/app-secrets holds the config incl. rateLimitMax (values not shown)
+  PASS  IAM: one least-privilege role per Lambda (3)
+  PASS  Lambda: election-svc, voting-svc, results-svc
+  PASS  API Gateway: election-http-api with 29 routes (incl. /results/verify)
+  PASS  CloudWatch: log groups + FailedLogins metric filter + alarm
+== 2. Deployed API (API Gateway -> Lambda)
+  PASS  no token -> 401 on the deployed API
+  PASS  security headers on deployed API answers
+  PASS  results routes are protected (401 without token)
+  PASS  website on S3 has the results and auditor pages
+== 3. Lab 8 security layers (code)
+  PASS  sanitising removes <script> before saving
+  PASS  too-long input -> 400
+  PASS  rate limiter on every API request (60 s sliding window, limit from Secrets Manager)
+  PASS  S1-S7 attack checks passed (8 checks, docs/lab8/security-checks.txt)
+== 4. Scale out and load tests (evidence)
+  INFO  no workers running on :8080 right now (start: bash infra/scale-test.sh horizontal 3)
+  PASS  k6 run-a evidence: docs/lab8/run-a.txt + .json
+  PASS  k6 run-b evidence: docs/lab8/run-b.txt + .json
+  PASS  k6 run-c evidence: docs/lab8/run-c.txt + .json
+  PASS  failover drill: worker 2 crashed during Run C and the load balancer routed around it
+
+Result: 20 passed, 0 failed

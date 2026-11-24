@@ -21,30 +21,25 @@ External: Cloudflare Turnstile (anti-bot) + email API (codes and receipts)
 ```
 Words you will hear: **Lambda** = code that runs only when a request arrives · **API Gateway** = the front door that sends each URL to the right Lambda · **S3** = file storage that serves the website · **DynamoDB** = AWS database (we use it for the audit log) · **Neon** = online Postgres database (all main data) · **Floci** = runs all the AWS parts locally in Docker · **JWT token** = the "logged in" pass the browser sends with every request.
 
-## 3. Status (updated 18 Nov)
+## 3. Status (updated 24 Nov)
 ### Done and tested
 | Item | Proof |
 |---|---|
-| Docker, WSL, AWS CLI, Floci installed on Mo'men's PC | Floci healthy; data survives restarts (persistent mode) |
-| Neon database: 11 tables, admin + auditor accounts | `npm run migrate`, `npm run seed` |
-| Shared code everyone uses: login check (JWT), roles, input validation, error format, logging, audit hash chain, election state rules, Turnstile check | `backend/shared/` |
-| Working endpoints: login, logout, `/api/me`, create/list elections, turnout, audit log, audit verify | 16/16 security checks pass on Floci |
-| Full deployment to Floci with one command, safe to re-run | `bash infra/setup-all.sh` |
-| Fast code update command | `bash infra/deploy-code.sh` |
-| Website on S3 shows "API online: lambda" | browser |
-| GitHub repo + one branch per person | github.com/momenemadd/student-election-voting |
+| Floci (7 AWS services: S3, API Gateway, Lambda, DynamoDB, Secrets Manager, IAM, CloudWatch) + Neon, one-command setup | `bash infra/setup-all.sh`, `bash infra/check-lab8.sh` → 20/20 |
+| Election Management (Mo'men): 25 endpoints, admin pages | `tests/election-e2e.js` 48/48 (local + Floci) |
+| Voting (Fouda): register, e-mail code (Brevo), login, ballot, vote, receipt, student pages | `tests/voting-e2e.js` 56/56 (local) |
+| Results & Audit (Khaled, completed by Mo'men): count, results, publish, export with hash check, recount, turnout, audit log + verify, security summary, results page, auditor page | `tests/results-e2e.js` 22/22 (local + Floci) |
+| Lab 8: security headers, rate limit on every request, sanitising, local load balancer, 3 workers, k6 Run A/B/C, failover, S1–S7 | `docs/lab-08-results.md`, `docs/lab8/` |
+| Security smoke tests | `tests/security-smoke.js` 16/16 |
+| Demo data cleaned: only "Student Union Elections 2026", admin, auditor, roster students | 24 Nov |
 
-### Not done yet
+### Still to do (everyone)
 | Item | Owner |
 |---|---|
-| ~~Election Management endpoints + admin pages~~ **DONE 18 Nov** – 25 endpoints, 3 admin pages, 48/48 tests pass locally and on Floci (`tests/election-e2e.js`) | Mo'men |
-| Click through the admin pages once yourself and take screenshots for the report | Mo'men |
-| Register, email code, ballot, **vote**, receipt + student pages; choose email provider | Osama |
-| Tally, results, publish, export, security summary + auditor pages; CloudWatch alarm evidence | Khaled |
-| Security test table (17 tests), screenshots, integrated test | all (Khaled collects) |
-| Report (16 sections + 3 individual statements), demo video ≤ 5 min | all (Khaled compiles) |
-| Invite Khaled to GitHub (username still unknown) | Mo'men |
-| Make repo **Public** before submission; final commit/push | Mo'men, last step |
+| Write your own individual statement in the report (§ Individual statements) | each person |
+| Screenshots for §11 monitoring (CloudWatch log filter, FailedLogins alarm) and the demo video ≤ 5 min | all |
+| Rehearse: each person explains their own request flow without notes | all |
+| Copy `docs/REPORT_DRAFT.md` into the final Word/PDF report and submit | Mo'men |
 
 ## 4. Who does what (each person owns frontend + backend + data + security + tests for their service)
 **Step-by-step guides:** Fouda (Mohamed Osama) → [`docs/GUIDE_FOUDA.md`](GUIDE_FOUDA.md) · Mohamed Khaled → [`docs/GUIDE_MOHAMED_KHALED.md`](GUIDE_MOHAMED_KHALED.md). Each explains the project in simple words, what Mo'men already finished, the to-do list day by day, every endpoint, page, test, screenshot and report section, what happens after all three finish, and a "done" checklist.

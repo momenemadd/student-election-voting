@@ -1,0 +1,20 @@
+== Lab 8 security checks 2026-11-24T21:30:25Z against http://localhost:8080
+      X-Content-Type-Options: nosniff
+      X-Frame-Options: DENY
+      Content-Security-Policy: default-src 'none'; frame-ancestors 'none'
+PASS  S1 security headers: nosniff, X-Frame-Options DENY, Content-Security-Policy
+           59 401
+           21 429
+PASS  S2 rate limiting: requests over the limit get 429
+PASS  S3 fake X-Forwarded-For is ignored: still 429
+      waiting 61 s so the sliding window empties ...
+      ost 1000 characters","details":{"field":"description"}}} 400
+PASS  S4 input validation: 1001-character description -> 400
+      saved description: "hi"
+PASS  S5 sanitising: <script> removed, saved text is "hi"
+      AuditLog actions for the S5 election: ELECTION_CREATED
+PASS  S6 audit trail: ELECTION_CREATED recorded in DynamoDB AuditLog
+PASS  S6 blocked requests are in the audit log: RATE_LIMITED records = 17
+      {"valid":true,"count":260}
+PASS  S7 audit hash chain verifies (valid:true)
+Result: 8 passed, 0 failed

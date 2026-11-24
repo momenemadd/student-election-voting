@@ -65,11 +65,33 @@ Business rules: state machine (DRAFT→SCHEDULED→OPEN→CLOSED, CANCELLED); au
 | GET/POST | /api/elections/:id/eligible-students | bulk: student_ids[] or all_active | 200, 400, 401, 403, 404, 409 |
 | PUT/DELETE | /api/elections/:id/eligible-students/:studentId | active student; before OPEN | 201/200/204, 401, 403, 404, 409 |
 
-### 3.2 Service 2 – Voter Access & Voting (Osama) **[NEEDS Osama's final endpoint table]**
-Implemented so far: POST /api/auth/login (200/400/401/403/423), POST /api/auth/logout (204/401), GET /api/me (200/401). To add: register, verify-email, my elections, ballot, votes, receipt.
+### 3.2 Service 2 – Voter Access & Voting (Mohamed Osama) **[READY – Osama to check wording]**
+Business rules: only students on the roster (number + matching roster e-mail) can register; e-mail ownership proved with a 6-digit code (SHA-256 stored, 10 min, 5 tries); identity only from the token; one vote per student enforced by the vote_receipts primary key inside one transaction; WHO voted and WHAT was chosen are never linked; login/register/code/vote limited in DynamoDB. Communicates with Election Management (eligibility, positions, candidates, status) and Results & Audit (receipts and ballots are counted there).
+| Method | Endpoint | Validates | Codes |
+|---|---|---|---|
+| POST | /api/auth/register | Turnstile, student number 4-12, roster number + matching e-mail, password 12-200, not registered | 201, 400, 403, 409, 429, 503 |
+| POST | /api/auth/verify-email | exactly 6 digits, 10 min expiry, max 5 tries | 200, 400, 401, 429 |
+| POST | /api/auth/resend-code | e-mail; always 200 (no account enumeration) | 200, 400, 429 |
+| POST | /api/auth/login | Turnstile, generic error, lockout after 5 failures, per address+e-mail limit | 200, 400, 401, 403, 423, 429 |
+| POST | /api/auth/logout · GET /api/me | token | 204/200, 401 |
+| GET | /api/me/elections | STUDENT; only my eligible, non-draft elections + has_voted | 200, 401, 403 |
+| GET | /api/elections/:id/ballot | eligible (else 404), OPEN, not voted; no vote counts | 200, 400, 401, 403, 404, 409 |
+| POST | /api/elections/:id/votes | Turnstile, each position chosen 1..max, candidate belongs to position, one transaction | 201, 400, 401, 403, 404, 409, 429 |
+| GET | /api/elections/:id/receipt | only my own receipt | 200, 400, 401, 403, 404 |
 
-### 3.3 Service 3 – Results & Audit (Khaled) **[NEEDS Khaled's final endpoint table]**
-Implemented so far: GET /api/elections/:id/turnout (200/400/401/403/404), GET /api/audit-logs (200/400/401/403), GET /api/audit-logs/verify (200/401/403). To add: tally, results, publish, export, security summary.
+### 3.3 Service 3 – Results & Audit (Mohamed Khaled) **[READY]**
+Business rules: counting only after CLOSED; integrity check ballots = receipts; 0-vote candidates included; ties at the last winning place reported (never decided randomly); result saved in Neon and as a file in S3 with a SHA-256 fingerprint; students see results only after PUBLISHED and only for elections they were listed in; admins cannot read the audit log (separation of duties); hash-chain verification. Communicates with Election Management (status, positions, candidates, eligibility) and Voting (receipts, ballots).
+| Method | Endpoint | Validates | Codes |
+|---|---|---|---|
+| POST | /api/elections/:id/tally | ADMIN; CLOSED; integrity check; safe to repeat (same hash, restores a missing S3 file) | 200, 400, 401, 403, 404, 409 |
+| GET | /api/elections/:id/results | ADMIN/AUDITOR after counting; STUDENT only PUBLISHED and listed | 200, 400, 401, 403, 404, 409 |
+| POST | /api/elections/:id/results/publish | ADMIN; TALLIED → PUBLISHED (one transaction, strict audit) | 200, 401, 403, 404, 409 |
+| GET | /api/elections/:id/results/export | ADMIN/AUDITOR; re-hash the S3 file and compare (tampered/missing → 500) | 200, 401, 403, 404, 409, 500 |
+| GET | /api/elections/:id/results/verify | ADMIN/AUDITOR; recount from the ballots and compare with the stored hash | 200, 401, 403, 404, 409 |
+| GET | /api/elections/:id/turnout | ADMIN/AUDITOR; counts only, never choices | 200, 400, 401, 403, 404 |
+| GET | /api/audit-logs?election=&action=&from=&to= | AUDITOR only; filters validated | 200, 400, 401, 403 |
+| GET | /api/audit-logs/verify | AUDITOR; recompute the hash chain | 200, 401, 403 |
+| GET | /api/monitoring/security-summary?hours= | AUDITOR; hours 1-168; failed logins, locks, blocked, rate-limited, wrong codes | 200, 400, 401, 403 |
 
 ### 3.4 Data model **[READY]**
 Entities (Neon): users, students, elections, positions, candidates, eligibility, vote_receipts, ballots, ballot_selections, result_snapshots (+ audit_log fallback). DynamoDB: AuditLog (pk, seq), RateLimits.
@@ -141,7 +163,7 @@ https://github.com/momenemadd/student-election-voting · branches per owner · C
 ## 11. Log and monitoring evidence **[NEEDS screenshots]**
 Structured JSON log line per request (time, service, method, path, status, duration, hashed user id; never bodies, tokens or passwords). To capture: CloudWatch log group per function; filter `{ $.status = 403 }`; metric `FailedLogins` + alarm (≥5 in 5 min) triggered by ST-11; auditor "verify chain" result.
 
-## 12. Security test table **[PARTLY READY – add screenshots]**
+## 12. Security test table **[READY – add screenshots]**
 | ID | Scenario | Expected | Actual (18 Nov, Floci) | Result |
 |---|---|---|---|---|
 | ST-01 | No token on protected route | 401 | 401 | PASS |
@@ -149,25 +171,38 @@ Structured JSON log line per request (time, service, method, path, status, durat
 | ST-03 | Other admin edits someone else's election (ownership) | 403 | 403 (EM-09) | PASS |
 | ST-04 | Invalid input: end before start, seats 0, short name, bad UUID | 400 | 400 | PASS |
 | ST-05 | SQL injection in id and search | 400 / 0 rows | 400 / 200 empty | PASS |
-| ST-06 | Duplicate vote incl. 20 parallel requests | one 201, rest 409 | ⟨run tests/race-test.js⟩ | – |
-| ST-07 | Vote outside window | 409 | ⟨Osama⟩ | – |
-| ST-08 | Results before publish | 403/409 | ⟨Khaled⟩ | – |
+| ST-06 | Duplicate vote incl. 20 parallel requests | one 201, rest 409 | 409 ALREADY_VOTED (VT-13); 20 at once → exactly one 201, 1 receipt + 1 ballot stored (VT-14) | PASS |
+| ST-07 | Vote outside window | 409 | before opening 409 (VT-08b); after closing 409 ELECTION_NOT_OPEN (VT-15) | PASS |
+| ST-08 | Results before publish | 403/409 | student 403 RESULTS_NOT_PUBLISHED (RS-06); admin before counting 409 NOT_COUNTED (RS-08); student not listed 404 (RS-07) | PASS |
 | ST-09 | Secret exposure review (repo + history + website bucket) | none found | none in 47 committed files; `.env` → 404 on website | PASS |
 | ST-10 | Tampered token / token after logout | 401 | 401 / 401 | PASS |
 | ST-11 | Wrong password / unknown user / repeated failures | 401 same message; 423 after 5 | 401 / 401; ⟨lockout screenshot⟩ | PARTLY |
 | ST-12 | Edit window, delete candidate, change eligibility while OPEN | 409 | 409 / 409 / 409 (EM-38..40) | PASS |
 | ST-13 | IAM review: role per function, no wildcard data actions | documented | `infra/iam/*.json` | PASS |
 | ST-14 | Audit chain verification | valid:true | valid:true | PASS |
-| ST-15 | XSS payload as candidate name | shown as text | ⟨screenshot⟩ | – |
+| ST-15 | XSS payload as candidate name / description | shown as text, script removed | `<script>alert(1)</script>hi` saved as "hi" (Lab 8 S5); pages insert text with textContent only | PASS |
 | ST-16 | No join path between receipts and ballots | none | schema review | PASS |
 | ST-17 | CORS from evil origin | no allow header | no header; site origin allowed | PASS |
-Plus 48/48 Election Management tests (`tests/election-e2e.js`, local and Floci).
+| ST-18 | Tampered result file in S3 / tampered audit record in DynamoDB | detected | export → 500 SNAPSHOT_TAMPERED (RS-14); chain verify → valid:false (RS-17), on Floci | PASS |
+| ST-19 | Two counts at the same moment | same result, no error | both 200 with the same SHA-256 (RS-22) | PASS |
+| ST-20 | Request flood / fake X-Forwarded-For (Lab 8 S2, S3) | 429 | 59 answered then 21 × 429; fake header still 429 | PASS |
+| ST-21 | Security headers (Lab 8 S1) | nosniff, DENY, CSP | present on every answer, also from Lambda | PASS |
+Plus automated end-to-end tests (24 Nov): Election Management 48/48 (local and Floci), Voting 56/56 (local; not on Floci because it would e-mail made-up addresses), Results & Audit 22/22 (local and Floci), security smoke 16/16, Lab 8 S1–S7 8/8, Lab 8 checker 20/20.
 
-## 13. Integrated testing **[NEEDS full run after all services]**
-Main scenario: admin creates election → positions/candidates → roster → eligibility → schedule → opens automatically → student registers, logs in, votes, gets receipt → closes → tally → publish → student sees results → auditor verifies chain. Invalid cases: ineligible student, duplicate vote, vote after close, illegal transitions, malformed JSON (400 INVALID_JSON verified on Lambda).
+## 13. Integrated testing **[READY – add demo screenshots]**
+Main scenario: admin creates election → positions/candidates → roster → eligibility → schedule → opens automatically → student registers, logs in, votes, gets receipt → closes → tally → publish → student sees results → auditor verifies chain. Invalid cases: ineligible student, duplicate vote, vote after close, illegal transitions, malformed JSON (400 INVALID_JSON verified on Lambda). Result (24 Nov, Floci, browser): the full scenario was run end to end — count, recount and compare, publish, student view, auditor security summary and "Verify chain" (screenshots `docs/evidence/RS-*.jpg`); every invalid case is covered by the automated tests above.
+
+### 13.1 Scaling, load testing and failover (Lab 8) **[READY – full numbers in `docs/lab-08-results.md`]**
+Following Lab 8 without adding AWS services: the same stateless backend ran as 1 worker (vertical) and as 3 workers behind a local load balancer on :8080 (round robin, health check every 3 s), then worker 2 was killed during the test. Grafana k6, up to 50 virtual users, 3 minutes each:
+| | 1 worker | 3 workers | 3 workers, one crashed |
+|---|---|---|---|
+| Throughput | 15.2 req/s | 20.3 req/s | 18.6 req/s |
+| p(95) | 2,102 ms | 587 ms | 1,055 ms |
+| Failed requests | 0.00% | 0.00% | 0.00% |
+Scaling out cut p(95) 3.6×; the load balancer logged the crash (`ECONNREFUSED`), retried on a healthy worker and no request failed. p(95) stays above 500 ms because each request makes ~2 round trips to Neon in Frankfurt (~0.2 s each) and all workers share one laptop. Security attack checks S1–S7: 8/8 passed; Lab 8 checker: 20/20 passed.
 
 ## 14. Cost / resource statement **[READY]**
-Resources: 3 Lambda functions (256 MB, 15 s timeout), 1 HTTP API, 3 S3 buckets, 2 DynamoDB on-demand tables, 1 secret, log groups; Neon free plan; Turnstile free. Cost: €0 (Floci is local; on real AWS these are pay-per-request and scale to zero). Avoiding waste: on-demand capacity, small zip (4.3 MB), one pooled DB connection per Lambda container, no always-on servers. More load: API Gateway and Lambda scale out automatically; Neon pooler accepts many connections; bottleneck would be the single Neon compute, solved by a larger compute size.
+Resources: 3 Lambda functions (512 MB, 15 s timeout), 1 HTTP API (29 routes), 3 S3 buckets, 2 DynamoDB on-demand tables, 1 secret, log groups + metric filter + alarm; Neon free plan; Turnstile and Brevo free. Cost: €0 (Floci is local; on real AWS these are pay-per-request and scale to zero). Avoiding waste: on-demand capacity, small zip (5 MB), one pooled DB connection per Lambda container, no always-on servers, a hard maximum on copies (Lab 8 Auto Scaling idea: max 4 workers in our scale script), expiring rate-limit counters (DynamoDB TTL). More load: API Gateway and Lambda add copies automatically; Lab 8 measurements show 3 copies serve 33% more requests 3.6× faster than one; the next bottleneck is the single Neon compute and its distance, solved by a larger compute in the same region.
 
 ## 15. Recovery approach **[READY]**
 Everything is code: `db/schema.sql` + `npm run migrate` recreate the database structure, `npm run seed` recreates admin/auditor, `infra/setup-all.sh` recreates all cloud resources (idempotent), secrets are re-entered from `.env`. Data: Neon point-in-time restore/branching ⟨check free-plan window⟩. Compromise: rotate JWT secret (all tokens invalid), rotate DB password and API keys, verify audit chain, review CloudWatch logs.
@@ -182,6 +217,13 @@ Everything is code: `db/schema.sql` + `npm run migrate` recreate the database st
 | Identity based on roster + email, not university SSO | no access | SSO/OIDC integration |
 | Audit chain not anchored externally | scope | periodic hash anchoring to S3 Object Lock |
 | Scheduler not used; time transitions applied on access | reliability and simplicity | EventBridge Scheduler for notifications |
+| Turnstile runs with Cloudflare's official test keys | the deployment is local (localhost) | real site/secret keys on a public domain |
+| E-mails are sent from a Gmail sender (no own domain, no DKIM/DMARC) and may land in Spam | free plan, no domain | verified domain with DKIM/DMARC |
+| On Floci every request arrives as 127.0.0.1, so per-address limits act as per-container limits | emulator networking | real API Gateway passes the client address |
+| The general rate limiter counts in memory, so each worker/container counts separately (Lab 8 lesson) | simplicity, no extra service | shared counter (DynamoDB, as already used for login/vote) or API Gateway throttling |
+| p(95) above 500 ms under load | database in another region, all workers on one laptop | database in the same region, real separate compute |
+| ALB, ECS, Auto Scaling not used (local load balancer instead) | team decision: keep 7 AWS services | ECS service + ALB on real AWS |
+| The Voting end-to-end tests are run locally only | on Floci they would e-mail made-up addresses | a test inbox / e-mail sandbox |
 
 ---
 ## Individual Contribution Statements (end of report)
@@ -195,5 +237,7 @@ Everything is code: `db/schema.sql` + `npm run migrate` recreate the database st
 - **Integration:** uses shared auth/validation/audit; reads turnout from Results & Audit; provides eligibility and candidates to Voting; owns Floci infrastructure scripts.
 - **Decisions:** time-based OPEN/CLOSED applied lazily with the database clock (no dependency on a scheduler); creator-only ownership; delete only DRAFT/CANCELLED elections.
 - **Difficulties:** Express 5 + serverless-http passed request bodies as raw Buffers on Lambda (every login failed with "email must be a string") – solved with a small parser in the shared app; Floci lost all resources on restart – solved with persistent storage mode; deploy script created duplicates on re-run – made idempotent.
-### Mohamed Osama – Voter Access & Voting **[NEEDS Osama]**
-### Mohamed Khaled – Results & Audit **[NEEDS Khaled]**
+- **Integration and completion work (add to Mo'men's statement):** reviewed, tested and merged the Voting service (added its database columns, fixed the Brevo key permission, changed the login limit to address+e-mail because Floci shows every client as 127.0.0.1, verified a real e-mail flow on Floci); merged the Results & Audit backend and completed it (results page, auditor page, S3 restore + clear "missing file" error, simultaneous-count fix, Floci versions of RS-14/RS-17, test RS-22); Lab 8 work (security headers, rate limit on every request with a sliding window, sanitising, worker ids, local load balancer + scale script, k6 load tests Run A/B/C, failover drill, S1–S7 checks, Lab 8 checker).
+### Mohamed Osama – Voter Access & Voting **[Osama writes it in his own words – his draft notes exist]**
+### Mohamed Khaled – Results & Audit **[Khaled writes it in his own words]**
+Facts for his statement: he implemented the backend (`tally.js` counting with winners and ties and a canonical hash, `snapshots.js` S3 copy, `routes.js` with count, results, publish, export with hash check, recount, security summary, audit filters) and `tests/results-e2e.js` (RS-01–RS-21), 4 commits on `feat/khaled-results`. The results and auditor pages, the S3/simultaneous-count improvements and RS-22 were completed by Mo'men after the merge (commits under Mo'men's name).

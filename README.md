@@ -31,6 +31,27 @@ bash infra/deploy-code.sh      # after every code change: updates the 3 Lambdas 
 ```
 Floci runs in persistent mode (Docker volume `floci-data`), so everything survives restarts.
 
+## Tests
+```bash
+cd backend && npm test                         # unit tests
+node ../tests/election-e2e.js                  # Election Management (48)
+node ../tests/voting-e2e.js                    # Voting (56, local only: it sends e-mails)
+node ../tests/results-e2e.js                   # Results & Audit (22)
+node ../tests/security-smoke.js                # security smoke (16)
+```
+
+## Lab 8 – scale and secure (no extra AWS services)
+```bash
+export RATE_LIMIT_MAX=100000                   # raise the limit for load tests
+bash infra/scale-test.sh vertical && bash infra/load-test.sh run-a      # 1 worker
+bash infra/scale-test.sh horizontal 3 && bash infra/load-test.sh run-b  # 3 workers behind lb on :8080
+bash infra/load-test.sh run-c                  # failover: worker 2 is killed after 30 s
+unset RATE_LIMIT_MAX; bash infra/scale-test.sh stop
+RATE_LIMIT_MAX=60 bash infra/scale-test.sh vertical && bash infra/security-checks.sh   # S1-S7
+bash infra/scale-test.sh stop && bash infra/check-lab8.sh                              # PASS/FAIL checker
+```
+Results: `docs/lab-08-results.md` (needs k6: https://grafana.com/docs/k6/).
+
 ## Rules
 - No secrets in git (`.env` is ignored; only `.env.example`). Run gitleaks before every push to `main`.
 - Every state-changing route: `requireAuth` → `requireRole` → ownership/state check → validated input → audit event.
