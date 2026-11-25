@@ -1,15 +1,15 @@
 # Lab 8 – Scale and Secure: results for the Student Election app
 
 Measured on 24 Nov 2026 on Mo'men's laptop (Floci on Docker, database on Neon in Frankfurt).
-Raw evidence: `docs/lab8/` (k6 output + JSON summaries, round-robin and failover logs, S1–S7 checks, checker output).
+Raw evidence: `docs/load-testing/` (k6 output + JSON summaries, round-robin and failover logs, S1–S7 checks, checker output).
 
 ## How we followed Lab 8 (without adding AWS services)
 | Lab 8 idea | In our project |
 |---|---|
 | Scale up (vertical): one bigger server | `bash infra/scale-test.sh vertical` → one worker `ecs-task-vertical` on :8080 |
-| Scale out (horizontal): copies behind a load balancer | `bash infra/scale-test.sh horizontal 3` → workers `ecs-task-1..3` on :3001–:3003 behind `infra/scale/lb.js` on :8080 (round robin, health check `GET /api/health` every 3 s, failover). Lab 8 also uses a local load balancer that plays the role of the ALB. |
+| Scale out (horizontal): copies behind a load balancer | `bash infra/scale-test.sh horizontal 3` → workers `ecs-task-1..3` on :3001–:3003 behind `infra/scale/load-balancer.js` on :8080 (round robin, health check `GET /api/health` every 3 s, failover). Lab 8 also uses a local load balancer that plays the role of the ALB. |
 | Stateless app | Workers keep nothing important in memory: login = signed token checked against the database; data in Neon; audit log + login/vote rate limits in DynamoDB; settings from Secrets Manager. Any worker can answer any request. |
-| Load test with Grafana k6 | `k6/election-load-test.js` + `bash infra/load-test.sh run-a / run-b / run-c` (ramp-up, steady, spike, hold, ramp-down; thresholds p(95) < 500 ms and failures < 5%) |
+| Load test with Grafana k6 | `tests/load/election-load-test.js` + `bash infra/load-test.sh run-a / run-b / run-c` (ramp-up, steady, spike, hold, ramp-down; thresholds p(95) < 500 ms and failures < 5%) |
 | Failover drill | Run C kills worker 2 after 30 s (`scale-test.sh kill 2`) |
 | Security in layers | Least-privilege IAM, rate limit on every request (60 s sliding window, N from Secrets Manager), input validation, sanitising, security headers, secrets in Secrets Manager, audit log |
 | ALB, ECS, Auto Scaling, SQS, SNS, EventBridge | **Not added**: the team decided to stay with our 7 AWS services. The local load balancer + workers demonstrate the same behaviour; our main deployment is serverless (API Gateway + Lambda), where AWS adds copies automatically. |
@@ -42,7 +42,7 @@ Raw evidence: `docs/lab8/` (k6 output + JSON summaries, round-robin and failover
 | S5 `<script>alert(1)</script>hi` | **saved as "hi"** | Sanitising |
 | S6 audit trail | `ELECTION_CREATED` recorded in DynamoDB AuditLog; **17 `RATE_LIMITED`** records for blocked requests | Audit log |
 | S7 audit chain | `{"valid":true,"count":260}` | Tamper-evident log |
-Result: **8 passed, 0 failed** (`docs/lab8/security-checks.txt`). Automatic checker: **20 passed, 0 failed** (`docs/lab8/check-lab8.txt`).
+Result: **8 passed, 0 failed** (`docs/load-testing/security-checks.txt`). Automatic checker: **20 passed, 0 failed** (`docs/load-testing/deployment-verification.txt`).
 
 ## How to repeat (Git Bash, project folder, Docker running)
 ```bash
@@ -52,5 +52,5 @@ bash infra/scale-test.sh horizontal 3 && bash infra/load-test.sh run-b
 bash infra/load-test.sh run-c                 # same 3 workers, worker 2 is killed after 30 s
 unset RATE_LIMIT_MAX; bash infra/scale-test.sh stop
 RATE_LIMIT_MAX=60 bash infra/scale-test.sh vertical && bash infra/security-checks.sh
-bash infra/scale-test.sh stop && bash infra/check-lab8.sh
+bash infra/scale-test.sh stop && bash infra/verify-deployment.sh
 ```

@@ -1,5 +1,5 @@
 // Lab 8: a small local load balancer that plays the role of the ALB (Application Load Balancer).
-//   node infra/scale/lb.js <listenPort> <targetPort> [<targetPort> ...]
+//   node infra/scale/load-balancer.js <listenPort> <targetPort> [<targetPort> ...]
 // - Round robin: each request goes to the next HEALTHY target (1, 2, 3, 1, 2, 3 ...).
 // - Health check: GET /api/health on every target every 3 seconds; a target that fails is skipped
 //   until it answers again (failover).
@@ -13,7 +13,7 @@ const path = require('path');
 
 const [listenPort, ...targetPorts] = process.argv.slice(2).map(Number);
 if (!listenPort || targetPorts.length === 0) {
-  console.error('usage: node infra/scale/lb.js <listenPort> <targetPort> [...]');
+  console.error('usage: node infra/scale/load-balancer.js <listenPort> <targetPort> [...]');
   process.exit(2);
 }
 const targets = targetPorts.map((port) => ({ port, url: `http://localhost:${port}/`, healthy: true }));

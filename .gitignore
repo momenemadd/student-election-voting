@@ -18,3 +18,7 @@ infra/.run/
 
 # demo video is uploaded to a video site, not committed
 *.mp4
+
+# local helper that builds the Word report, and Word's temporary lock files
+docs/build_report.py
+~$*

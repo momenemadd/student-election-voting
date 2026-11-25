@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Lab 8 style automatic check: PASS/FAIL for the cloud (our 7 AWS services on Floci), the deployed API,
 # the Lab 8 security layers, the scale-out evidence and the load-test evidence.
-#   bash infra/check-lab8.sh
+#   bash infra/verify-deployment.sh
 set -u   # no pipefail: "cmd | grep -q" must not fail when grep stops reading early
 cd "$(dirname "$0")/.."
 export AWS_PROFILE=floci MSYS_NO_PATHCONV=1
@@ -53,8 +53,8 @@ node -e "const {v}=require('./backend/shared/validate');try{v.text('a'.repeat(50
   && ok "too-long input -> 400" || bad "length validation" "check backend/shared/validate.js"
 grep -q "apiLimiter" backend/shared/http.js && grep -q "WINDOW_MS = 60_000" backend/shared/limiter.js \
   && ok "rate limiter on every API request (60 s sliding window, limit from Secrets Manager)" || bad "rate limiter" "check backend/shared/limiter.js"
-[ -f docs/lab8/security-checks.txt ] && grep -q "Result: .* 0 failed" docs/lab8/security-checks.txt \
-  && ok "S1-S7 attack checks passed ($(grep -c '^PASS' docs/lab8/security-checks.txt) checks, docs/lab8/security-checks.txt)" \
+[ -f docs/load-testing/security-checks.txt ] && grep -q "Result: .* 0 failed" docs/load-testing/security-checks.txt \
+  && ok "S1-S7 attack checks passed ($(grep -c '^PASS' docs/load-testing/security-checks.txt) checks, docs/load-testing/security-checks.txt)" \
   || bad "S1-S7 evidence" "RATE_LIMIT_MAX=60 bash infra/scale-test.sh vertical && bash infra/security-checks.sh"
 
 echo "== 4. Scale out and load tests (evidence)"
@@ -63,9 +63,9 @@ if curl -s -m 2 http://localhost:8080/api/health >/dev/null 2>&1; then
   [ "$SEEN" -ge 2 ] && ok "round robin: $SEEN different workers answered 6 requests" || info "one worker serves everything (instances seen: $SEEN)"
 else info "no workers running on :8080 right now (start: bash infra/scale-test.sh horizontal 3)"; fi
 for r in run-a run-b run-c; do
-  [ -f "docs/lab8/$r.json" ] && ok "k6 $r evidence: docs/lab8/$r.txt + .json" || bad "k6 $r evidence" "bash infra/load-test.sh $r"
+  [ -f "docs/load-testing/$r.json" ] && ok "k6 $r evidence: docs/load-testing/$r.txt + .json" || bad "k6 $r evidence" "bash infra/load-test.sh $r"
 done
-grep -q "upstream .* failed" infra/.run/logs/lb.log 2>/dev/null || grep -q "worker 2 crashed" docs/lab8/run-c-events.txt 2>/dev/null \
+grep -q "upstream .* failed" infra/.run/logs/lb.log 2>/dev/null || grep -q "worker 2 crashed" docs/load-testing/run-c-events.txt 2>/dev/null \
   && ok "failover drill: worker 2 crashed during Run C and the load balancer routed around it" || bad "failover evidence" "bash infra/load-test.sh run-c"
 
 echo

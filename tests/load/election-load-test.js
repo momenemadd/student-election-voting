@@ -1,7 +1,7 @@
 // Lab 8: load test for the Student Election API with Grafana k6.
 // Run through the helper (it reads the admin login from backend/.env without printing it):
 //   bash infra/load-test.sh run-a        # or run-b / run-c, against http://localhost:8080
-// Plain k6:  k6 run -e BASE_URL=http://localhost:8080 -e ADMIN_EMAIL=... -e ADMIN_PASSWORD=... k6/election-load-test.js
+// Plain k6:  k6 run -e BASE_URL=http://localhost:8080 -e ADMIN_EMAIL=... -e ADMIN_PASSWORD=... tests/load/election-load-test.js
 //
 // VU = one simulated user looping over the mix below. p(95) = 95% of requests were faster than this.
 import http from 'k6/http';

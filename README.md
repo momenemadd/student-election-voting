@@ -8,7 +8,7 @@ Cloud Computing & Cloud Security group project. Express APIs (3 services) + plai
 | Voter Access & Voting | Mohamed Osama | `backend/services/voting`, `frontend/student`, `backend/shared` |
 | Results & Audit | Mohamed Khaled | `backend/services/results`, `frontend/auditor`, `docs` |
 
-**Start here: `docs/TEAM_GUIDE.md`** (status, who does what, setup steps). Full design: `FINAL_PHASE_PLAN.md`.
+Final report: `docs/FINAL_REPORT.md` (architecture and ER diagrams in `docs/diagrams/`, screenshots in `docs/evidence/`, load-test results in `docs/SCALING_AND_LOAD_TESTING.md`).
 
 ## Run locally
 ```bash
@@ -48,9 +48,20 @@ bash infra/scale-test.sh horizontal 3 && bash infra/load-test.sh run-b  # 3 work
 bash infra/load-test.sh run-c                  # failover: worker 2 is killed after 30 s
 unset RATE_LIMIT_MAX; bash infra/scale-test.sh stop
 RATE_LIMIT_MAX=60 bash infra/scale-test.sh vertical && bash infra/security-checks.sh   # S1-S7
-bash infra/scale-test.sh stop && bash infra/check-lab8.sh                              # PASS/FAIL checker
+bash infra/scale-test.sh stop && bash infra/verify-deployment.sh                              # PASS/FAIL checker
 ```
-Results: `docs/lab-08-results.md` (needs k6: https://grafana.com/docs/k6/).
+Results: `docs/SCALING_AND_LOAD_TESTING.md` (needs k6: https://grafana.com/docs/k6/).
+
+## Demo day
+```bash
+# Git Bash in the project folder, Docker Desktop running (Floci starts with it)
+export AWS_PROFILE=floci MSYS_NO_PATHCONV=1
+bash infra/deploy-code.sh          # make sure the Lambdas and website have the latest code
+bash infra/verify-deployment.sh    # PASS/FAIL check of the 7 AWS services, API and security layers
+```
+Website: http://localhost:4566/election-web/index.html · Floci dashboard: http://localhost:4566/_floci/ui
+Scenario: create election → vote → duplicate vote (409) → student opens an admin route (403) → close voting early → count → publish → auditor verify chain → failed logins in CloudWatch Logs:
+`aws logs filter-log-events --log-group-name /aws/lambda/voting-svc --filter-pattern 401`
 
 ## Rules
 - No secrets in git (`.env` is ignored; only `.env.example`). Run gitleaks before every push to `main`.

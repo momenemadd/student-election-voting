@@ -1,5 +1,5 @@
 # Who owns which files. The LAST matching line wins, so specific paths come after general ones.
-# Each student only edits their own paths (see docs/GUIDE_FOUDA.md and docs/GUIDE_MOHAMED_KHALED.md, Part 0).
+# Each student only edits their own paths.
 
 # ---- Mo'men (momenemadd): Election Management, shared code, infrastructure, database ----
 *                                   @momenemadd
@@ -19,4 +19,4 @@
 /frontend/results/                  @mohamedkhaled1112
 /frontend/auditor/                  @mohamedkhaled1112
 /tests/results-e2e.js               @mohamedkhaled1112
-/docs/REPORT_DRAFT.md               @mohamedkhaled1112
+/docs/FINAL_REPORT.md               @mohamedkhaled1112

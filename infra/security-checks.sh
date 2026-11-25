@@ -2,11 +2,11 @@
 # Lab 8 Part 6 "Attack your own app" - S1 to S7 against the worker on :8080.
 # Run with ONE worker and the NORMAL limit (60 per 60 s, as in Lab 8):
 #   unset RATE_LIMIT_MAX; RATE_LIMIT_MAX=60 bash infra/scale-test.sh vertical; bash infra/security-checks.sh
-# Evidence is saved in docs/lab8/security-checks.txt (no passwords or tokens are printed).
+# Evidence is saved in docs/load-testing/security-checks.txt (no passwords or tokens are printed).
 set -uo pipefail
 cd "$(dirname "$0")/.."
-OUT=docs/lab8/security-checks.txt
-mkdir -p docs/lab8
+OUT=docs/load-testing/security-checks.txt
+mkdir -p docs/load-testing
 B=http://localhost:8080
 export AWS_ENDPOINT_URL=http://localhost:4566 AWS_REGION=us-east-1 AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test MSYS_NO_PATHCONV=1
 unset AWS_PROFILE

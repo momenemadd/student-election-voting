@@ -68,7 +68,7 @@ case "${1:-}" in
       ports+=($((3000 + i)))
     done
     for p in "${ports[@]}"; do wait_healthy "$p"; done
-    node infra/scale/lb.js 8080 "${ports[@]}" > "$LOGS/lb.log" 2>&1 &
+    node infra/scale/load-balancer.js 8080 "${ports[@]}" > "$LOGS/lb.log" 2>&1 &
     echo $! > "$RUN/lb.pid"
     sleep 1
     echo "horizontal: $n workers on :${ports[*]} behind the load balancer http://localhost:8080"
